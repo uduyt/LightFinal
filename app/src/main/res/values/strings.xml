@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Light</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="action_settings">Settings</string>
+    <string name="facebook_app_id">1441105452886982</string>
+    <string name="str_version_number">2</string>
+</resources>

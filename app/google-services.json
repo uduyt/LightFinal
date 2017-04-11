@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "132544055529",
+    "firebase_url": "https://lightfinal-48714.firebaseio.com",
+    "project_id": "lightfinal-48714",
+    "storage_bucket": "lightfinal-48714.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:132544055529:android:8d8b05b3fbb67b41",
+        "android_client_info": {
+          "package_name": "com.witcode.light.light"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "132544055529-675jbrijs8l5glppqlktjd2i4ktp3seh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.witcode.light.light",
+            "certificate_hash": "c4e6dd23e31af3f85d2eff0ba3523506135b562e"
+          }
+        },
+        {
+          "client_id": "132544055529-ipq053likffcau2669kfqpt12vl87jsc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDevBWWqPZZxK3oAC043M8y0Gc0T1ip50s"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "132544055529-ipq053likffcau2669kfqpt12vl87jsc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

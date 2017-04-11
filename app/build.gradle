@@ -1,0 +1,53 @@
+apply plugin: 'com.android.application'
+
+android {
+    signingConfigs {
+        light {
+            keyAlias 'rosety'
+            keyPassword 'fertdgcv'
+            storeFile file('C:/Users/carlo/Google Drive/Carlos/Proyectos/Programacion/Android/keystores/lightfinal.jks')
+            storePassword 'fertdgcv'
+        }
+    }
+    compileSdkVersion 25
+    buildToolsVersion "25.0.2"
+    defaultConfig {
+        applicationId "com.witcode.light.light"
+        minSdkVersion 16
+        targetSdkVersion 25
+        versionCode 2
+        versionName "1.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.light
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+    compile 'com.android.support:appcompat-v7:25.3.0'
+    compile 'com.android.support:design:25.3.0'
+    compile 'com.google.firebase:firebase-auth:9.6.1'
+    compile 'com.google.firebase:firebase-crash:9.6.1'
+    compile 'com.google.firebase:firebase-database:9.6.1'
+    compile 'com.google.firebase:firebase-core:9.6.1'
+    compile 'com.afollestad.material-dialogs:core:0.8.6.1'
+    compile 'com.google.firebase:firebase-storage:9.6.1'
+    compile 'de.hdodenhof:circleimageview:2.1.0'
+    compile 'com.facebook.android:facebook-android-sdk:[4,5)'
+    compile 'com.squareup.picasso:picasso:2.5.2'
+    compile 'com.google.android.gms:play-services-location:9.6.1'
+    compile group: 'commons-lang', name: 'commons-lang', version: '2.6'
+    testCompile 'junit:junit:4.12'
+}
+
+
+apply plugin: 'com.google.gms.google-services'
