@@ -5,9 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.ServiceConnection;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.Signature;
 import android.graphics.Color;
 import android.location.Location;
 import android.net.Uri;
@@ -16,28 +14,20 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-import android.renderscript.ScriptGroup;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentTransaction;
-import android.support.v4.content.ContextCompat;
-import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
-import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
-import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.afollestad.materialdialogs.DialogAction;
 import com.afollestad.materialdialogs.MaterialDialog;
@@ -59,14 +49,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.Permission;
-import java.util.Timer;
-import java.util.TimerTask;
-
 import backend.GetLights;
-import backend.LoginTask;
 import backend.OnLocationUpdateListener;
 import backend.OnTaskCompletedListener;
 import backend.ServiceBinder;
@@ -105,12 +88,11 @@ public class MainActivity extends AppCompatActivity
                     .addConnectionCallbacks(this)
                     .addOnConnectionFailedListener(this)
                     .addApi(LocationServices.API)
-                    .addApi(Places.GEO_DATA_API)
+                    //.addApi(Places.GEO_DATA_API)
                     .enableAutoManage(this, this)
                     .build();
         }
 
-        mGoogleApiClient.connect();
         CheckPermissionAndAsk();
 
 
@@ -180,46 +162,17 @@ public class MainActivity extends AppCompatActivity
             @Override
             public void onClick(View view) {
 
-                mBoundService.setBinder(new ServiceBinder() {
-                    @Override
-                    public void OnUpdate(final String distance, final String speed, final int seconds, final String lights, final String GPS) {
-                        mDistance = Double.parseDouble(distance);
-                        mSpeed = Double.parseDouble(speed);
-                        mLights = Double.parseDouble(lights);
-
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                dialogWalk.show();
-                                tvDistance.setText(distance + "m");
-                                tvSpeed.setText(speed + "km/h");
-
-                                minutes = (seconds) / 60;
-                                hours = minutes / 60;
-                                if (hours > 0) {
-                                    tvTime.setText(hours + "h " + minutes % 60 + "min " + seconds % 60 + "s");
-                                } else if (minutes > 0) {
-                                    tvTime.setText(minutes + "min " + seconds % 60 + "s");
-                                } else {
-                                    tvTime.setText(seconds + "s");
-                                }
-
-                                tvDialogLights.setText(lights);
-                                tvGPS.setText(GPS);
-
-
-                            }
-                        });
-
-                    }
-                });
+                ShowRunningActivityDialog();
             }
         });
         UpdateFabActivity();
 
-
         SetUpDialog();
 
+        if(getIntent().getAction().equals("too_fast")){
+            StopWalkService();
+            Snackbar.make(findViewById(R.id.cl_container), "Va demasiado rápido...", Snackbar.LENGTH_SHORT).show();
+        }
     }
 
     @Override
@@ -297,7 +250,7 @@ public class MainActivity extends AppCompatActivity
                         int l = (int) mLights;
                         new UpdateLights(l, new OnTaskCompletedListener() {
                             @Override
-                            public void OnComplete(String result, int resultCode) {
+                            public void OnComplete(String result, int resultCode, int resultType) {
                                 Snackbar.make(findViewById(R.id.cl_container), "Se ha terminado la acción, has ganado " + (int) mLights + " lights", Snackbar.LENGTH_SHORT).show();
                             }
                         }).execute();
@@ -339,12 +292,17 @@ public class MainActivity extends AppCompatActivity
                 fragmentTransaction.commit();
                 break;
             case "start":
-                StartFragment mStartFragment = new StartFragment();
-                mStartFragment.setArguments(extras);
-                fragmentTransaction = getSupportFragmentManager().beginTransaction();
-                fragmentTransaction.addToBackStack("start");
-                fragmentTransaction.replace(R.id.container, mStartFragment);
-                fragmentTransaction.commit();
+                if(WalkService.IS_SERVICE_RUNNING){
+                    Snackbar.make(findViewById(R.id.cl_container), "Termine la actividad actual para comenzar una nueva", Snackbar.LENGTH_SHORT).show();
+                }else{
+                    StartFragment mStartFragment = new StartFragment();
+                    mStartFragment.setArguments(extras);
+                    fragmentTransaction = getSupportFragmentManager().beginTransaction();
+                    fragmentTransaction.addToBackStack("start");
+                    fragmentTransaction.replace(R.id.container, mStartFragment);
+                    fragmentTransaction.commit();
+                }
+
                 break;
             case "market":
                 MarketFragment mMarketFragment = new MarketFragment();
@@ -394,7 +352,7 @@ public class MainActivity extends AppCompatActivity
 
             new GetLights(new OnTaskCompletedListener() {
                 @Override
-                public void OnComplete(String result, int resultCode) {
+                public void OnComplete(String result, int resultCode, int resultType) {
                     if (resultCode == GetLights.SUCCESSFUL) {
                         tvLights.setText(result);
 
@@ -405,8 +363,45 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+    public void ShowRunningActivityDialog() {
+        dialogWalk.show();
+        mBoundService.setBinder(new ServiceBinder() {
+            @Override
+            public void OnUpdate(final String distance, final String speed, final int seconds, final String lights, final String GPS) {
+                mDistance = Double.parseDouble(distance);
+                mSpeed = Double.parseDouble(speed);
+                mLights = Double.parseDouble(lights);
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        tvDistance.setText(String.valueOf(Math.round(mDistance * 100.0) / 100.0) + "m");
+                        tvSpeed.setText(String.valueOf(Math.round(mSpeed * 100.0) / 100.0) + "km/h");
+
+                        minutes = (seconds) / 60;
+                        hours = minutes / 60;
+                        if (hours > 0) {
+                            tvTime.setText(hours + "h " + minutes % 60 + "min " + seconds % 60 + "s");
+                        } else if (minutes > 0) {
+                            tvTime.setText(minutes + "min " + seconds % 60 + "s");
+                        } else {
+                            tvTime.setText(seconds + "s");
+                        }
+
+                        tvDialogLights.setText(String.valueOf(Math.round(mLights * 100.0) / 100.0));
+                        tvGPS.setText(GPS);
+
+
+                    }
+                });
+
+            }
+        });
+    }
+
     protected void onStart() {
-        mGoogleApiClient.connect();
+        //mGoogleApiClient.connect();
         super.onStart();
     }
 
@@ -504,20 +499,18 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-    public void StartWalkService() {
+    public void StartWalkService(int activityType) {
         Intent service = new Intent(MainActivity.this, WalkService.class);
         if (!WalkService.IS_SERVICE_RUNNING) {
             service.setAction("start_foreground");
             WalkService.IS_SERVICE_RUNNING = true;
+            WalkService.CURRENT_ACTIVITY = activityType;
+
             startService(service);
             UpdateFabActivity();
 
-            Log.i("ForegroundService", "Clicked Previous");
-            mHandler = new Handler() {
-                public void handleMessage(Message msg) {
+            Log.i("ForegroundService", "Service Started");
 
-                }
-            };
             doBindService();
         }
     }
@@ -528,14 +521,14 @@ public class MainActivity extends AppCompatActivity
         UpdateFabActivity();
     }
 
-    private WalkService mBoundService=null;
+    private WalkService mBoundService = null;
 
     private ServiceConnection mConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder service) {
 
             mBoundService = ((WalkService.LocalBinder) service).getService();
             mBoundService.mActivity = (MainActivity) mContext;
-            (new Timer()).scheduleAtFixedRate(new MainActivity.MyTimerTask(), 0, 2500);
+            ShowRunningActivityDialog();
             Log.i("ForegroundService", "service_connected");
         }
 
@@ -548,24 +541,26 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
-    void doBindService() {
+    public void doBindService() {
         // Establish a connection with the service.  We use an explicit
         // class name because we want a specific service implementation that
         // we know will be running in our own process (and thus won't be
         // supporting component replacement by other applications).
         bindService(new Intent(MainActivity.this,
                 WalkService.class), mConnection, Context.BIND_AUTO_CREATE);
+        Log.v("ForegroundService", "service bound");
+
     }
 
-    private class MyTimerTask extends TimerTask {
-        @Override
-        public void run() {
-            // Do stuff
-            Log.i("ForegroundService", "in activity: " + mBoundService.getSeconds());
+    public void doUnBindService() {
+        // Establish a connection with the service.  We use an explicit
+        // class name because we want a specific service implementation that
+        // we know will be running in our own process (and thus won't be
+        // supporting component replacement by other applications).
+        unbindService(mConnection);
+        Log.v("ForegroundService", "service unbound");
 
-        }
     }
-
 
     public void SetUpLocation() {
 
@@ -615,15 +610,22 @@ public class MainActivity extends AppCompatActivity
 
     public void UpdateFabActivity() {
         if (WalkService.IS_SERVICE_RUNNING) {
+
+            if(WalkService.CURRENT_ACTIVITY==StartFragment.ACTIVITY_WALK)
+                fabActivity.setImageResource(R.mipmap.ic_fab_walk);
+            else if(WalkService.CURRENT_ACTIVITY==StartFragment.ACTIVITY_BIKE)
+                fabActivity.setImageResource(R.mipmap.ic_fab_bike);
+
             fabActivity.setVisibility(View.VISIBLE);
-            if(mBoundService!=null){
+            if (mBoundService != null) {
                 mBoundService.mActivity = (MainActivity) mContext;
-            }else{
+            } else {
                 doBindService();
             }
 
         } else {
             fabActivity.setVisibility(View.GONE);
+            mBoundService=null;
         }
     }
 }

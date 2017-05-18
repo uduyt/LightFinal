@@ -77,7 +77,7 @@ public class RankingFragment extends Fragment{
 
         new GetRankings(new OnTaskCompletedListener() {
             @Override
-            public void OnComplete(String result, int resultCode) {
+            public void OnComplete(String result, int resultCode, int resultType) {
                 Log.d("tagg", result);
                 try {
                     JSONArray jsonRankings= new JSONArray(result);

@@ -188,7 +188,7 @@ public class LoginActivity extends AppCompatActivity {
 
                             new LoginTask(mContext,gender, email, new OnTaskCompletedListener() {
                                 @Override
-                                public void OnComplete(String result, int resultCode) {
+                                public void OnComplete(String result, int resultCode, int resultType) {
                                     Log.v("tagg", "came back with: " + resultCode);
                                     findViewById(R.id.fl_login_pb).setVisibility(View.GONE);
                                     if (resultCode == LoginTask.SUCCESSFUL) {

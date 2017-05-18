@@ -6,5 +6,5 @@ package backend;
 
 public interface OnTaskCompletedListener {
 
-    void OnComplete(String result, int resultCode);
+    void OnComplete(String result, int resultCode, int resultType);
 }

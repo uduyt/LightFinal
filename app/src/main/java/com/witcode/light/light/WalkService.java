@@ -13,9 +13,7 @@ import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.os.Binder;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
@@ -26,20 +24,21 @@ import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
 import java.util.Timer;
 import java.util.TimerTask;
 
-import backend.OnLocationUpdateListener;
+import backend.OnTaskCompletedListener;
 import backend.ServiceBinder;
+import backend.UpdateLights;
 
 public class WalkService extends Service implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         com.google.android.gms.location.LocationListener {
+
     private static final String LOG_TAG = "ForegroundService";
     private int seconds, minutes, hours;
     private Timer walkTimer;
@@ -48,8 +47,10 @@ public class WalkService extends Service implements
     private double speed, distance, mLights;
     private GoogleApiClient mGoogleApiClient;
     private ServiceBinder mActualBinder = null;
-    private String currentActivity, locationState;
-    public MainActivity mActivity=null;
+    private String locationState;
+    public MainActivity mActivity = null;
+    public static int CURRENT_ACTIVITY = -1;
+    public Service mService=this;
 
     public class LocalBinder extends Binder {
         WalkService getService() {
@@ -70,7 +71,7 @@ public class WalkService extends Service implements
         }
         walkTimer = new Timer();
         walkTimer.scheduleAtFixedRate(new WalkService.MyTimerTask(), 0, 1000);
-
+        mGoogleApiClient.connect();
 
     }
 
@@ -95,11 +96,15 @@ public class WalkService extends Service implements
             } else if (intent.getAction().equals("action_stop")) {
                 Log.i(LOG_TAG, "Clicked Stop");
 
-                Toast.makeText(this, "Clicked Stop!", Toast.LENGTH_SHORT)
-                        .show();
-                stopForeground(true);
+                new UpdateLights((int)Math.round(mLights), new OnTaskCompletedListener() {
+                    @Override
+                    public void OnComplete(String result, int resultCode, int resultType) {
+                        Toast.makeText(mService, "Se ha terminado la acción, has ganado " + (int) mLights + " lights", Toast.LENGTH_SHORT)
+                                .show();
+                    }
+                }).execute();
 
-                stopSelf();
+                KillService();
 
             }
         }
@@ -108,34 +113,32 @@ public class WalkService extends Service implements
     }
 
     private void showNotification() {
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        notificationIntent.setAction("action_main");
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+        Intent iContentPress = new Intent(this, MainActivity.class);
+        iContentPress.setAction("action_main");
+        iContentPress.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
-                notificationIntent, 0);
+        PendingIntent piContent = PendingIntent.getActivity(this, 0,
+                iContentPress, 0);
 
-        Intent nextIntent = new Intent(this, WalkService.class);
-        nextIntent.setAction("action_stop");
-        PendingIntent stopIndent = PendingIntent.getService(this, 0,
-                nextIntent, 0);
+        Intent iStopPress = new Intent(this, WalkService.class);
+        iStopPress.setAction("action_stop");
+        PendingIntent piStop = PendingIntent.getService(this, 0,
+                iStopPress, 0);
 
         Bitmap icon = BitmapFactory.decodeResource(getResources(),
                 R.mipmap.ic_icono_app);
 
-        RemoteViews rvs = new RemoteViews(getPackageName(), R.layout.custom_walk_notif);
         Notification notification = new NotificationCompat.Builder(this)
                 .setContentTitle("Actividad en proceso")
                 .setTicker("Esto es un ticker")
-                .setContent(rvs)
-                .setSmallIcon(R.mipmap.ic_icono_app)
+                .setSmallIcon(R.drawable.ic_bulb)
                 .setLargeIcon(Bitmap.createScaledBitmap(icon, 128, 128, false))
-                .setContentIntent(pendingIntent)
+                .setContentIntent(piContent)
                 .setOngoing(true)
-                .addAction(R.drawable.ic_stop_black_24dp, "Terminar actividad",
-                        stopIndent).build();
-        startForeground(1,
-                notification);
+                .addAction(R.drawable.ic_stop_black_24dp, "Terminar actividad",piStop)
+                .build();
+
+        startForeground(1,notification);
 
     }
 
@@ -143,15 +146,14 @@ public class WalkService extends Service implements
     public void onDestroy() {
         WalkService.IS_SERVICE_RUNNING = false;
         walkTimer.cancel();
-        seconds=0;
-        distance=0;
-        speed=0;
-        mLights=0;
-        if(mActivity!=null)
-        mActivity.UpdateFabActivity();
+        seconds = 0;
+        distance = 0;
+        speed = 0;
+        mLights = 0;
+        if (mActivity != null)
+            mActivity.UpdateFabActivity();
         super.onDestroy();
         Log.i(LOG_TAG, "In onDestroy");
-        Toast.makeText(this, "Service Detroyed!", Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -187,15 +189,27 @@ public class WalkService extends Service implements
                                     speed = (mLastLocation.distanceTo(oldLocation) / (mLastLocation.getTime() - oldLocation.getTime())) * 360;
                                     distance += mLastLocation.distanceTo(oldLocation);
                                     oldLocation = mLastLocation;
-                                    if (currentActivity.equals("walk"))
+                                    if (CURRENT_ACTIVITY == StartFragment.ACTIVITY_WALK)
                                         mLights += (distance / 100) * Math.sqrt(speed / 6) * 0.7;
-                                    else
+                                    else if (CURRENT_ACTIVITY == StartFragment.ACTIVITY_BIKE)
                                         mLights += (distance / 500) * Math.sqrt(speed / 15) * 0.7;
 
-                                    if (currentActivity.equals("walk") & speed > 16) {
+                                    if (CURRENT_ACTIVITY == StartFragment.ACTIVITY_WALK & speed > 16) {
                                         //Too fast
+                                        Intent iContentPress = new Intent(mService, MainActivity.class);
+                                        iContentPress.setAction("too_fast");
+                                        iContentPress.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                        PendingIntent piContent = PendingIntent.getActivity(mService, 0,
+                                                iContentPress, 0);
 
-                                    } else if (currentActivity.equals("bike") & speed > 60) {
+                                        try {
+                                            piContent.send();
+                                        } catch (PendingIntent.CanceledException e) {
+                                            e.printStackTrace();
+                                        }
+
+                                    } else if (CURRENT_ACTIVITY == StartFragment.ACTIVITY_BIKE & speed > 60) {
                                         //Too fast
 
                                     }
@@ -269,5 +283,9 @@ public class WalkService extends Service implements
         stopForeground(true);
         WalkService.IS_SERVICE_RUNNING = false;
         stopSelf();
+        if (mActivity != null) {
+            mActivity.UpdateFabActivity();
+            mActivity.doUnBindService();
+        }
     }
 }
