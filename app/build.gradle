@@ -1,14 +1,7 @@
 apply plugin: 'com.android.application'
 
 android {
-    signingConfigs {
-        light {
-            keyAlias 'rosety'
-            keyPassword 'fertdgcv'
-            storeFile file('C:/Users/carlo/Google Drive/Carlos/Proyectos/Programacion/Android/keystores/lightfinal.jks')
-            storePassword 'fertdgcv'
-        }
-    }
+
     compileSdkVersion 25
     buildToolsVersion "25.0.2"
     defaultConfig {
@@ -23,7 +16,6 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.light
         }
     }
 }

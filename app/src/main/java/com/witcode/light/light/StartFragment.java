@@ -1,10 +1,11 @@
 package com.witcode.light.light;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
@@ -17,11 +18,17 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.LinearInterpolator;
+import android.view.animation.RotateAnimation;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.afollestad.materialdialogs.DialogAction;
+import com.afollestad.materialdialogs.GravityEnum;
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.google.android.gms.location.LocationRequest;
 
@@ -30,7 +37,7 @@ import java.util.TimerTask;
 
 import backend.OnLocationUpdateListener;
 import backend.OnTaskCompletedListener;
-import backend.SendPromotion;
+import backend.SyncContainer;
 import backend.UpdateLights;
 import backend.ValidateBus;
 
@@ -39,7 +46,7 @@ public class StartFragment extends Fragment {
     private static Toolbar myToolbar;
     private RecyclerView recyclerView;
     private ProgressBar progressBar;
-    private MaterialDialog mDialog, mBusDialog;
+    private MaterialDialog mDialog, mBusDialog, mRecycleDialog;
     private View myView;
     private Timer walkTimer;
     private int seconds = 0, minutes = 0, hours = 0;
@@ -48,10 +55,14 @@ public class StartFragment extends Fragment {
     private TimerTask mWalkTimerTask;
     private static Handler mHandler;
     private Location oldLocation, newLocation;
-    private double mLights=0;
+    private double mLights = 0;
     private String locationState;
-    private String currentActivity="walk";
-    private int z=0;
+    private FrameLayout flRecycleDialogFirst, flRecycleDialogSecond, flRecycleDialogThird;
+    private int currentActivity = -1;
+    final static int ACTIVITY_WALK = 1;
+    final static int ACTIVITY_BIKE = 2;
+    private boolean recycleSynced=false;
+    private int z = 0;
 
     private TextView tvTime, tvDistance, tvSpeed, tvGPS, tvLights;
     private MaterialDialog dialogWalk = null;
@@ -156,130 +167,24 @@ public class StartFragment extends Fragment {
                     @Override
                     public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
                         mDialog.dismiss();
-                        dialogWalk = new MaterialDialog.Builder(getActivity())
-                                .title("Datos de la actividad")
-                                .contentColor(Color.parseColor("#ffffff"))
-                                .titleColor(Color.parseColor("#ffffff"))
-                                .positiveText("Terminar")
-                                .customView(R.layout.dialog_walk, true)
-                                .backgroundColor(getActivity().getResources().getColor(R.color.PrimaryDark))
-                                /*.negativeText("Pausar")
-                                .onNegative(new MaterialDialog.SingleButtonCallback() {
-                                    @Override
-                                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                                        DialogPauseWalk();
-                                    }
-                                })*/
-
-                                .onPositive(new MaterialDialog.SingleButtonCallback() {
-                                    @Override
-                                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                                        dialogWalk.dismiss();
-                                        DialogStopWalk();
-                                        mLights=Math.round(mLights);
-                                        int l=(int) mLights;
-                                        new UpdateLights(l, new OnTaskCompletedListener() {
-                                            @Override
-                                            public void OnComplete(String result, int resultCode) {
-                                                Snackbar.make(myView, "Se ha terminado la acción, has ganado " + (int)mLights + " lights", Snackbar.LENGTH_SHORT).show();
-                                            }
-                                        }).execute();
-                                    }
-                                })
-                                .build();
-                        tvTime = (TextView) dialogWalk.findViewById(R.id.tv_dialog_time);
-                        tvDistance = (TextView) dialogWalk.findViewById(R.id.tv_dialog_distance);
-                        tvSpeed = (TextView) dialogWalk.findViewById(R.id.tv_dialog_speed);
-                        tvGPS = (TextView) dialogWalk.findViewById(R.id.tv_dialog_gps_signal);
-                        tvLights = (TextView) dialogWalk.findViewById(R.id.tv_dialog_lights);
-                        DialogStartWalk();
-
-
-                        dialogWalk.setCanceledOnTouchOutside(false);
-                        dialogWalk.show();
+                        ((MainActivity) getActivity()).GoToFragment("home");
+                        ((MainActivity) getActivity()).StartWalkService(currentActivity);
                     }
                 }).build();
 
-        mHandler = new Handler() {
-            public void handleMessage(Message msg) {
-                if (seconds % 3 == 1) {
-                    if (oldLocation != null) {
-                        ((MainActivity) getActivity()).RequestLocationOnce(new OnLocationUpdateListener() {
-                            @Override
-                            public void OnLocationLoad(Location location) {
-                                Log.v("location_update", "locat came");
-                                if (location.getTime() - oldLocation.getTime() > 4000) {
-                                    if (location.getAccuracy() < 30) {
-                                        if (location.distanceTo(oldLocation) >  (location.getAccuracy() + oldLocation.getAccuracy())) {
-                                            Log.v("location_update", "adding values");
 
-                                            speed = (location.distanceTo(oldLocation)/ (location.getTime() - oldLocation.getTime())) * 360;
-                                            distance += location.distanceTo(oldLocation);
-                                            oldLocation = location;
-                                            if(currentActivity.equals("walk"))
-                                                mLights+=(distance/100)*Math.sqrt(speed/6)*0.7;
-                                            else
-                                                mLights+=(distance/500)*Math.sqrt(speed/15)*0.7;
-
-                                            if(currentActivity.equals("walk") & speed>16){
-                                                dialogWalk.dismiss();
-                                                Snackbar.make(myView, "Vas demasiado rápido para estar caminando...", Snackbar.LENGTH_SHORT).show();
-                                                DialogStopWalk();
-                                            }else if(currentActivity.equals("bike") & speed>60){
-                                                dialogWalk.dismiss();
-                                                Snackbar.make(myView, "Vas demasiado rápido para estar montando en bici...", Snackbar.LENGTH_SHORT).show();
-                                                DialogStopWalk();
-                                            }
-                                        }
-                                    }
-                                }
-                                Log.d("location_update", "location given with acc: " + location.getAccuracy());
-                                if (location.getTime() - oldLocation.getTime() > 10000) {
-                                    locationState = "La señal GPS es débil";
-                                } else {
-                                    locationState = "La señal GPS es buena";
-                                }
-                            }
-
-                            @Override
-                            public void OnLocationTimeOut(Location location) {
-                                Log.v("location_update", "locat came bad");
-                            }
-                        }, LocationRequest.PRIORITY_HIGH_ACCURACY);
-                    } else {
-                        locationState = "Buscando señal GPS...";
-                        ((MainActivity) getActivity()).RequestLocationOnce(new OnLocationUpdateListener() {
-                            @Override
-                            public void OnLocationLoad(Location location) {
-                                Log.v("location_update", "locat came the first time");
-                                if (location.getAccuracy() < 30)
-                                    oldLocation = location;
-
-                            }
-
-                            @Override
-                            public void OnLocationTimeOut(Location location) {
-                                Log.v("location_update", "locat came bad the first time");
-                            }
-                        }, LocationRequest.PRIORITY_HIGH_ACCURACY);
-                    }
-                }
-                UpdateWalkUI();
-
-            }
-        };
         return myView;
     }
 
     public void StartWalk() {
-        currentActivity="walk";
+        currentActivity = StartFragment.ACTIVITY_WALK;
         mDialog.show();
 
 
     }
 
     public void StartBike() {
-        currentActivity="bike";
+        currentActivity = StartFragment.ACTIVITY_BIKE;
         mDialog.show();
     }
 
@@ -316,13 +221,13 @@ public class StartFragment extends Fragment {
                                 Log.v("location_update", "loc_recieved");
                                 new ValidateBus(((EditText) mBusDialog.findViewById(R.id.et_dialog_line)).getText().toString(), location, new OnTaskCompletedListener() {
                                     @Override
-                                    public void OnComplete(String result, int resultCode) {
+                                    public void OnComplete(String result, int resultCode, int resultType) {
 
                                         Log.v("location_update", "val_recieved");
                                         if (resultCode == ValidateBus.VALIDATED) {
                                             new UpdateLights(10, new OnTaskCompletedListener() {
                                                 @Override
-                                                public void OnComplete(String result, int resultCode) {
+                                                public void OnComplete(String result, int resultCode, int resultType) {
                                                     Snackbar.make(myView, "La acción se ha realizado con éxito, has ganado 10 lights", Snackbar.LENGTH_SHORT).show();
                                                     progressDialog.dismiss();
                                                     Log.v("location_update", "all_good_in_bus_validate");
@@ -338,7 +243,7 @@ public class StartFragment extends Fragment {
                                                 }
                                             }).show();
                                             progressDialog.dismiss();
-                                        }else{
+                                        } else {
                                             Log.v("location_update", "strange error");
                                         }
 
@@ -351,7 +256,7 @@ public class StartFragment extends Fragment {
                             public void OnLocationTimeOut(Location location) {
                                 Log.v("location_update", "loc_recieved_bad");
                                 progressDialog.dismiss();
-                                if(location==null){
+                                if (location == null) {
                                     Snackbar.make(myView, "No se ha podido conseguir una posición válida", Snackbar.LENGTH_SHORT).setAction("VOLVER A INTENTAR", new View.OnClickListener() {
                                         @Override
                                         public void onClick(View view) {
@@ -378,17 +283,126 @@ public class StartFragment extends Fragment {
     }
 
     public void StartRecycle() {
-        Snackbar.make(myView, "Esta acción estará disponible muy pronto", Snackbar.LENGTH_SHORT).show();
-    }
+        mRecycleDialog = new MaterialDialog.Builder(getActivity())
 
+                .titleGravity(GravityEnum.CENTER)
+                .titleColorRes(R.color.colorPrimaryDark)
+                //.backgroundColor(getActivity().getResources().getColor(R.color.PrimaryDark))
+                .positiveText("CANCELAR")
+                .positiveColorRes(R.color.colorPrimaryDark)
+                .customView(R.layout.dialog_recycle, true)
+                .build();
+
+        View CustomView = mRecycleDialog.getCustomView();
+        flRecycleDialogFirst = (FrameLayout) CustomView.findViewById(R.id.fl_first_screen);
+        flRecycleDialogSecond = (FrameLayout) CustomView.findViewById(R.id.fl_second_screen);
+        flRecycleDialogThird = (FrameLayout) CustomView.findViewById(R.id.fl_third_screen);
+        ImageView ivSync = (ImageView) CustomView.findViewById(R.id.iv_dialog_sync);
+
+        RotateAnimation anim = new RotateAnimation(360, 0,
+                Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
+        anim.setInterpolator(new LinearInterpolator());
+        anim.setRepeatCount(Animation.INFINITE);
+        anim.setDuration(1000);
+
+        ivSync.startAnimation(anim);
+
+        OnTaskCompletedListener mListener= new OnTaskCompletedListener() {
+            @Override
+            public void OnComplete(String result, int resultCode, int resultType) {
+
+                if(mRecycleDialog.isShowing()){
+                    Log.d("container","result:  " + result);
+                    switch (resultCode){
+                        case SyncContainer.SYNCING:
+                            (new SyncContainer(this)).execute();
+
+                            break;
+                        case SyncContainer.SYNCED:
+
+
+                            if(!recycleSynced){
+                                flRecycleDialogFirst.animate()
+                                        .translationY(-flRecycleDialogFirst.getHeight())
+                                        .alpha(0.0f)
+                                        .setDuration(1000);
+
+                                flRecycleDialogSecond.setTranslationY(flRecycleDialogSecond.getHeight());
+                                flRecycleDialogSecond.animate()
+                                        .translationY(0)
+                                        .alpha(1.0f)
+                                        .setStartDelay(200)
+                                        .setDuration(800);
+
+                            }
+                            recycleSynced=true;
+                            (new SyncContainer(this)).execute();
+                            break;
+                        case SyncContainer.SYNC_END:
+
+                            if(recycleSynced){
+                                flRecycleDialogSecond.animate()
+                                        .translationY(-flRecycleDialogSecond.getHeight())
+                                        .alpha(0.0f)
+                                        .setDuration(1000);
+
+                                flRecycleDialogThird.setTranslationY(flRecycleDialogThird.getHeight());
+                                flRecycleDialogThird.animate()
+                                        .translationY(0)
+                                        .alpha(1.0f)
+                                        .setStartDelay(300)
+                                        .setDuration(900)
+                                        .setListener(new AnimatorListenerAdapter() {
+                                            @Override
+                                            public void onAnimationEnd(Animator animation) {
+                                                super.onAnimationEnd(animation);
+                                                mRecycleDialog.setActionButton(DialogAction.POSITIVE, "CERRAR");
+                                            }
+                                        });
+                            }else {
+                                flRecycleDialogFirst.animate()
+                                        .translationY(-flRecycleDialogFirst.getHeight())
+                                        .alpha(0.0f)
+                                        .setDuration(1000);
+
+                                flRecycleDialogThird.setTranslationY(flRecycleDialogThird.getHeight());
+                                flRecycleDialogThird.animate()
+                                        .translationY(0)
+                                        .alpha(1.0f)
+                                        .setStartDelay(300)
+                                        .setDuration(900)
+                                        .setListener(new AnimatorListenerAdapter() {
+                                            @Override
+                                            public void onAnimationEnd(Animator animation) {
+                                                super.onAnimationEnd(animation);
+                                                mRecycleDialog.setActionButton(DialogAction.POSITIVE, "CERRAR");
+                                            }
+                                        });
+                            }
+
+                        case SyncContainer.ERROR:
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
+            }
+        };
+
+        (new SyncContainer(mListener)).execute();
+
+        mRecycleDialog.show();
+        recycleSynced=false;
+    }
 
     public void DialogStartWalk() {
         seconds = 0;
-        mLights=0;
-        if(walkTimer!=null)
-        walkTimer.cancel();
+        mLights = 0;
+        if (walkTimer != null)
+            walkTimer.cancel();
 
-        walkTimer=new Timer();
+        walkTimer = new Timer();
         walkTimer.scheduleAtFixedRate(new MyTimerTask(), 0, 1000);
     }
 
@@ -401,9 +415,9 @@ public class StartFragment extends Fragment {
 
     public void UpdateWalkUI() {
         if (hours > 0) {
-            tvTime.setText(hours + "h " + minutes%60 + "min " + seconds%60 + "s");
+            tvTime.setText(hours + "h " + minutes % 60 + "min " + seconds % 60 + "s");
         } else if (minutes > 0) {
-            tvTime.setText(minutes + "min " + seconds%60 + "s");
+            tvTime.setText(minutes + "min " + seconds % 60 + "s");
         } else {
             tvTime.setText(seconds + "s");
         }

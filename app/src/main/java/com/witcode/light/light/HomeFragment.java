@@ -13,6 +13,7 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
@@ -39,7 +40,7 @@ import org.json.JSONObject;
 import de.hdodenhof.circleimageview.CircleImageView;
 
 
-public class HomeFragment extends Fragment{
+public class HomeFragment extends Fragment {
     private android.support.v7.widget.Toolbar myToolbar;
     private RecyclerView recyclerView;
     private ProgressBar progressBar;
@@ -56,7 +57,7 @@ public class HomeFragment extends Fragment{
 
         myView = inflater.inflate(R.layout.fragment_home, container, false);
 
-        mContext=getActivity();
+        mContext = getActivity();
         myToolbar = (Toolbar) myView.findViewById(R.id.toolbar);
         ((AppCompatActivity) getActivity()).setSupportActionBar(myToolbar);
 
@@ -85,8 +86,8 @@ public class HomeFragment extends Fragment{
 
         mDrawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
 
-        CircleImageView civ= (CircleImageView) myView.findViewById(R.id.civ_profile);
-        Uri uri=Profile.getCurrentProfile().getProfilePictureUri(640,640);
+        CircleImageView civ = (CircleImageView) myView.findViewById(R.id.civ_profile);
+        Uri uri = Profile.getCurrentProfile().getProfilePictureUri(640, 640);
         Log.d("tagg", uri.toString());
         Picasso.with(mContext).load(uri).into(civ, new Callback() {
             @Override
@@ -99,13 +100,17 @@ public class HomeFragment extends Fragment{
 
             }
         });
+        View fabLighter;
+        fabLighter = myView.findViewById(R.id.fab_lighter);
+        /*if (WalkService.IS_SERVICE_RUNNING)
+            fabLighter.setVisibility(View.GONE);
+        else
+            fabLighter.setVisibility(View.VISIBLE);*/
 
-
-        myView.findViewById(R.id.fab_lighter).setOnClickListener(new View.OnClickListener() {
+        fabLighter.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 ((MainActivity) getActivity()).GoToFragment("start");
-                ((MainActivity) getActivity()).StartWalkService();
             }
         });
         return myView;

@@ -72,7 +72,7 @@ public class MarketDetailFragment extends Fragment{
                 Log.d("tagg", "clicked");
                 new GetLights(new OnTaskCompletedListener() {
                     @Override
-                    public void OnComplete(String result, int resultCode) {
+                    public void OnComplete(String result, int resultCode, int resultType) {
                         Log.d("tagg", "get_lights with result: " + result);
                         if(Integer.parseInt(result)-Integer.parseInt(mMarketItem.getLights())>0){
                             MaterialDialog dialog = new MaterialDialog.Builder(getActivity())
@@ -94,13 +94,13 @@ public class MarketDetailFragment extends Fragment{
 
                                             new SendPromotion(mMarketItem, new OnTaskCompletedListener() {
                                                 @Override
-                                                public void OnComplete(String result, int resultCode) {
+                                                public void OnComplete(String result, int resultCode, int resultType) {
                                                     Log.d("tagg", "promotion sent");
                                                     if(resultCode==SendPromotion.SUCCESSFUL){
                                                         Log.d("tagg", "promotion sent successful");
                                                         new UpdateLights(-Integer.parseInt(mMarketItem.getLights()), new OnTaskCompletedListener() {
                                                             @Override
-                                                            public void OnComplete(String result, int resultCode) {
+                                                            public void OnComplete(String result, int resultCode, int resultType) {
                                                                 if(resultCode==UpdateLights.SUCCESSFUL){
                                                                     Log.d("tagg", "comprado con exito");
                                                                     Snackbar.make(myView,"La acción se ha realizado con éxito", Snackbar.LENGTH_SHORT).show();

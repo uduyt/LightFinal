@@ -79,7 +79,7 @@ public class MarketFragment extends Fragment{
 
         new GetMarketItems(new OnTaskCompletedListener() {
             @Override
-            public void OnComplete(String result, int resultCode) {
+            public void OnComplete(String result, int resultCode, int resultType) {
                 Log.d("tagg", result);
                 try {
                     JSONArray jsonMarkets= new JSONArray(result);
