@@ -1,5 +1,6 @@
 package backend;
 
+import android.content.Context;
 import android.net.Uri;
 
 import com.facebook.Profile;
@@ -15,7 +16,8 @@ public class SyncContainer extends MyServerClass implements OnTaskCompletedListe
     public static final int JUST_SYNCED = 5;
     public static final int ERROR = 6;
 
-    public SyncContainer(OnTaskCompletedListener listener) {
+    public SyncContainer(Context context, OnTaskCompletedListener listener) {
+        super(context);
         mCallback = listener;
 
         SetUp();

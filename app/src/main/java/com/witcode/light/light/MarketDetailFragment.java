@@ -70,7 +70,7 @@ public class MarketDetailFragment extends Fragment{
             @Override
             public void onClick(View view) {
                 Log.d("tagg", "clicked");
-                new GetLights(new OnTaskCompletedListener() {
+                new GetLights(getActivity(), new OnTaskCompletedListener() {
                     @Override
                     public void OnComplete(String result, int resultCode, int resultType) {
                         Log.d("tagg", "get_lights with result: " + result);
@@ -92,13 +92,13 @@ public class MarketDetailFragment extends Fragment{
                                         @Override
                                         public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
 
-                                            new SendPromotion(mMarketItem, new OnTaskCompletedListener() {
+                                            new SendPromotion(getActivity(), mMarketItem, new OnTaskCompletedListener() {
                                                 @Override
                                                 public void OnComplete(String result, int resultCode, int resultType) {
                                                     Log.d("tagg", "promotion sent");
                                                     if(resultCode==SendPromotion.SUCCESSFUL){
                                                         Log.d("tagg", "promotion sent successful");
-                                                        new UpdateLights(-Integer.parseInt(mMarketItem.getLights()), new OnTaskCompletedListener() {
+                                                        new UpdateLights(getActivity(), -Integer.parseInt(mMarketItem.getLights()), new OnTaskCompletedListener() {
                                                             @Override
                                                             public void OnComplete(String result, int resultCode, int resultType) {
                                                                 if(resultCode==UpdateLights.SUCCESSFUL){

@@ -50,7 +50,8 @@ public class WalkService extends Service implements
     private String locationState;
     public MainActivity mActivity = null;
     public static int CURRENT_ACTIVITY = -1;
-    public Service mService=this;
+    public Service mService = this;
+
 
     public class LocalBinder extends Binder {
         WalkService getService() {
@@ -91,12 +92,11 @@ public class WalkService extends Service implements
             if (intent.getAction().equals("start_foreground")) {
                 Log.i(LOG_TAG, "Received Start Foreground Intent ");
                 showNotification();
-                Toast.makeText(this, "Service Started!", Toast.LENGTH_SHORT).show();
 
             } else if (intent.getAction().equals("action_stop")) {
                 Log.i(LOG_TAG, "Clicked Stop");
 
-                new UpdateLights((int)Math.round(mLights), new OnTaskCompletedListener() {
+                new UpdateLights(mService,(int) Math.round(mLights), new OnTaskCompletedListener() {
                     @Override
                     public void OnComplete(String result, int resultCode, int resultType) {
                         Toast.makeText(mService, "Se ha terminado la acción, has ganado " + (int) mLights + " lights", Toast.LENGTH_SHORT)
@@ -135,10 +135,10 @@ public class WalkService extends Service implements
                 .setLargeIcon(Bitmap.createScaledBitmap(icon, 128, 128, false))
                 .setContentIntent(piContent)
                 .setOngoing(true)
-                .addAction(R.drawable.ic_stop_black_24dp, "Terminar actividad",piStop)
+                .addAction(R.drawable.ic_stop_black_24dp, "Terminar actividad", piStop)
                 .build();
 
-        startForeground(1,notification);
+        startForeground(1, notification);
 
     }
 
@@ -150,8 +150,11 @@ public class WalkService extends Service implements
         distance = 0;
         speed = 0;
         mLights = 0;
-        if (mActivity != null)
+        if (mActivity != null) {
             mActivity.UpdateFabActivity();
+            mActivity.serviceBound = false;
+        }
+
         super.onDestroy();
         Log.i(LOG_TAG, "In onDestroy");
     }

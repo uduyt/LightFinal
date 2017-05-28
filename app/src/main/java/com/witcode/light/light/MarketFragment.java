@@ -25,10 +25,11 @@ import java.util.List;
 
 import backend.GetMarketItems;
 import backend.GetRankings;
+import backend.MyServerClass;
 import backend.OnTaskCompletedListener;
 
 
-public class MarketFragment extends Fragment{
+public class MarketFragment extends Fragment {
     private static Toolbar myToolbar;
     private RecyclerView recyclerView;
     private ProgressBar progressBar;
@@ -75,43 +76,60 @@ public class MarketFragment extends Fragment{
         mDrawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
 
 
-        recyclerView=(RecyclerView) myView.findViewById(R.id.rv_market);
+        recyclerView = (RecyclerView) myView.findViewById(R.id.rv_market);
 
-        new GetMarketItems(new OnTaskCompletedListener() {
+        new GetMarketItems(getActivity(),new OnTaskCompletedListener() {
             @Override
             public void OnComplete(String result, int resultCode, int resultType) {
-                Log.d("tagg", result);
-                try {
-                    JSONArray jsonMarkets= new JSONArray(result);
-                    JSONObject jsonMarket;
-                    mMarkets=new ArrayList<MarketItem>();
-                    MarketItem marketItem;
-                    for(int i=0;i<jsonMarkets.length();i++) {
-                        jsonMarket = jsonMarkets.getJSONObject(i);
-                        marketItem = new MarketItem();
-                        marketItem.setId(jsonMarket.getString("id"));
-                        marketItem.setName(jsonMarket.getString("name"));
-                        marketItem.setInfo(jsonMarket.getString("info"));
-                        marketItem.setLights(jsonMarket.getString("lights"));
-                        marketItem.setDiscount(jsonMarket.getString("discount"));
-                        marketItem.setType(jsonMarket.getString("categoria"));
-                        mMarkets.add(marketItem);
+                if (resultCode == MyServerClass.SUCCESSFUL) {
+
+
+                    Log.d("tagg", result);
+                    try {
+                        JSONArray jsonMarkets = new JSONArray(result);
+                        JSONObject jsonMarket;
+                        mMarkets = new ArrayList<MarketItem>();
+                        MarketItem marketItem;
+                        for (int i = 0; i < jsonMarkets.length(); i++) {
+                            jsonMarket = jsonMarkets.getJSONObject(i);
+                            marketItem = new MarketItem();
+                            marketItem.setId(jsonMarket.getString("id"));
+                            marketItem.setName(jsonMarket.getString("name"));
+                            marketItem.setInfo(jsonMarket.getString("info"));
+                            marketItem.setLights(jsonMarket.getString("lights"));
+                            marketItem.setDiscount(jsonMarket.getString("discount"));
+                            marketItem.setType(jsonMarket.getString("categoria"));
+                            mMarkets.add(marketItem);
+                        }
+
+                        mAdapter = new MarketItemAdapter(mMarkets, getActivity());
+                        RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(getActivity());
+                        recyclerView.setLayoutManager(mLayoutManager);
+                        recyclerView.setItemAnimator(new DefaultItemAnimator());
+                        recyclerView.setAdapter(mAdapter);
+
+
+                        mAdapter.notifyDataSetChanged();
+                    } catch (JSONException e) {
+                        e.printStackTrace();
                     }
-
-                    mAdapter = new MarketItemAdapter(mMarkets, getActivity());
-                    RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(getActivity());
-                    recyclerView.setLayoutManager(mLayoutManager);
-                    recyclerView.setItemAnimator(new DefaultItemAnimator());
-                    recyclerView.setAdapter(mAdapter);
-
-
-                    mAdapter.notifyDataSetChanged();
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                    myView.findViewById(R.id.ll_market_not_connected).setVisibility(View.GONE);
+                    myView.findViewById(R.id.ll_market_connected).setVisibility(View.VISIBLE);
+                }else if(resultCode == MyServerClass.NOT_CONNECTED){
+                    myView.findViewById(R.id.ll_market_not_connected).setVisibility(View.VISIBLE);
+                    myView.findViewById(R.id.ll_market_connected).setVisibility(View.GONE);
                 }
-
             }
         }).execute();
+
+
+
+        myView.findViewById(R.id.bt_retry_connect).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ((MainActivity) getActivity()).GoToFragment("market");
+            }
+        });
 
         return myView;
     }

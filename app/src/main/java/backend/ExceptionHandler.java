@@ -2,6 +2,7 @@ package backend;
 
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
 import com.facebook.Profile;
 
@@ -15,7 +16,8 @@ public class ExceptionHandler extends MyServerClass implements OnTaskCompletedLi
     private int mResultCode, mResultType;
     public static final int SUCCESSFUL=1;
 
-    public ExceptionHandler(String result) {
+    public ExceptionHandler(Context context, String result) {
+        super(context,false);
         mResult=result;
 
         SetUp();
@@ -35,11 +37,15 @@ public class ExceptionHandler extends MyServerClass implements OnTaskCompletedLi
         super.setUri(builtUri);
         super.setListener(this);
 
+        Log.v("mytag", "exception sent with the following message: " + mResult);
+
     }
 
     @Override
     public void OnComplete(String result, int resultCode, int resultType) {
-
+        if(resultType==SUCCESSFUL){
+            Log.v("mytag", "exception was correctly received: " + mResult);
+        }
 
     }
 

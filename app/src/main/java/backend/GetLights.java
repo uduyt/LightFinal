@@ -22,7 +22,8 @@ public class GetLights extends MyServerClass implements OnTaskCompletedListener 
 
     private OnTaskCompletedListener mCallback;
 
-    public GetLights(OnTaskCompletedListener listener) {
+    public GetLights(Context context,OnTaskCompletedListener listener) {
+        super(context);
         mCallback = listener;
 
         SetUp();

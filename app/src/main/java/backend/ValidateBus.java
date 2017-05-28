@@ -23,7 +23,8 @@ public class ValidateBus extends MyServerClass implements OnTaskCompletedListene
     private Location mLocation;
     private String mLine;
 
-    public ValidateBus(String line, Location location, OnTaskCompletedListener listener) {
+    public ValidateBus(Context context, String line, Location location, OnTaskCompletedListener listener) {
+        super(context);
         mCallback = listener;
         mLocation = location;
         mLine = line;
@@ -53,10 +54,6 @@ public class ValidateBus extends MyServerClass implements OnTaskCompletedListene
             if(resultCode==MyServerClass.NULL_RESULT){
                 //maybe it doesnt matter
             }
-
-            //Send exception to server
-            (new ExceptionHandler(result)).execute();
-
             //Send listener back
             mCallback.OnComplete(result,resultCode,resultType);
 

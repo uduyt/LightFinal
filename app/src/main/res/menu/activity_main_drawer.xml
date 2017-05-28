@@ -17,6 +17,11 @@
             android:id="@+id/nav_ranking"
             android:icon="@drawable/ic_ranking"
             android:title="Ranking" />
+        <item
+            android:id="@+id/nav_admin"
+            android:visible="false"
+            android:icon="@drawable/ic_settings_black_24dp"
+            android:title="Admin" />
     </group>
 
     <group

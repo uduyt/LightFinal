@@ -219,13 +219,13 @@ public class StartFragment extends Fragment {
                             @Override
                             public void OnLocationLoad(Location location) {
                                 Log.v("location_update", "loc_recieved");
-                                new ValidateBus(((EditText) mBusDialog.findViewById(R.id.et_dialog_line)).getText().toString(), location, new OnTaskCompletedListener() {
+                                new ValidateBus(getActivity(),((EditText) mBusDialog.findViewById(R.id.et_dialog_line)).getText().toString(), location, new OnTaskCompletedListener() {
                                     @Override
                                     public void OnComplete(String result, int resultCode, int resultType) {
 
                                         Log.v("location_update", "val_recieved");
                                         if (resultCode == ValidateBus.VALIDATED) {
-                                            new UpdateLights(10, new OnTaskCompletedListener() {
+                                            new UpdateLights(getActivity(),10, new OnTaskCompletedListener() {
                                                 @Override
                                                 public void OnComplete(String result, int resultCode, int resultType) {
                                                     Snackbar.make(myView, "La acción se ha realizado con éxito, has ganado 10 lights", Snackbar.LENGTH_SHORT).show();
@@ -315,7 +315,7 @@ public class StartFragment extends Fragment {
                     Log.d("container","result:  " + result);
                     switch (resultCode){
                         case SyncContainer.SYNCING:
-                            (new SyncContainer(this)).execute();
+                            (new SyncContainer(getActivity(),this)).execute();
 
                             break;
                         case SyncContainer.SYNCED:
@@ -336,7 +336,7 @@ public class StartFragment extends Fragment {
 
                             }
                             recycleSynced=true;
-                            (new SyncContainer(this)).execute();
+                            (new SyncContainer(getActivity(),this)).execute();
                             break;
                         case SyncContainer.SYNC_END:
 
@@ -390,7 +390,7 @@ public class StartFragment extends Fragment {
             }
         };
 
-        (new SyncContainer(mListener)).execute();
+        (new SyncContainer(getActivity(),mListener)).execute();
 
         mRecycleDialog.show();
         recycleSynced=false;

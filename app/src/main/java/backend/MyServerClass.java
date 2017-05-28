@@ -1,6 +1,8 @@
 package backend;
 
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.util.Log;
@@ -19,35 +21,59 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-public class MyServerClass extends AsyncTask<Object, String, String> {
+public class MyServerClass extends AsyncTask<Object, String, ListenerArguments> {
 
     private HttpURLConnection urlConnection;
     private Uri mUri;
     private OnTaskCompletedListener mListener;
-    public static final int NO_INPUT_STREAM_EXCEPTION=1;
-    public static final int IOEXCEPTION=2;
-    public static final int NULL_RESULT=3;
+    private String responseString = "null";
+    private ExceptionHandler mExceptionHandler;
+    private boolean mSendError = true;
+    private Context mContext;
 
-    public static final int ERROR=1;
-    public static final int WARNING=2;
-    public static final int SUCCESSFUL=3;
+    public static final int NO_INPUT_STREAM_EXCEPTION = 1;
+    public static final int IOEXCEPTION = 2;
+    public static final int NOT_CONNECTED = 4;
+    public static final int SHOULDNT_HAPPEN = 5;
+    public static final int NULL_RESULT = 6;
 
-    public MyServerClass() {
+    public static final int ERROR = -1;
+    public static final int WARNING = -2;
+    public static final int SUCCESSFUL = -3;
 
+    public MyServerClass(Context context) {
+        mContext = context;
     }
 
-    public void setUri(Uri uri){
-        mUri=uri;
+    public MyServerClass(Context context, boolean sendError) {
+        mContext = context;
+        mSendError = false;
     }
 
-    public void setListener(OnTaskCompletedListener listener){
-        mListener=listener;
+    public void setUri(Uri uri) {
+        mUri = uri;
     }
+
+    public void setListener(OnTaskCompletedListener listener) {
+        mListener = listener;
+    }
+
     @Override
-    protected String doInBackground(Object... params) {
+    protected ListenerArguments doInBackground(Object... params) {
 
-        BufferedReader reader=null;
-        String responseString = null;
+        BufferedReader reader = null;
+
+        try {
+
+            if (!isConnected(mContext)) {
+                Log.v("mytag", "not connected to the internet");
+                return new ListenerArguments("not connected to the internet", NOT_CONNECTED, WARNING);
+            }
+        } catch (Exception e) {
+
+            return new ListenerArguments("isConnected ha dado el siguiente error: " + e.toString(), SHOULDNT_HAPPEN, ERROR);
+
+        }
 
         try {
 
@@ -59,41 +85,38 @@ public class MyServerClass extends AsyncTask<Object, String, String> {
 
             // Open the connection
             urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection.setConnectTimeout(1000);
+            urlConnection.setReadTimeout(8000);
             urlConnection.setRequestMethod("GET");
             urlConnection.connect();
 
             // Read the input stream into a String
             InputStream inputStream = urlConnection.getInputStream();
-            if (inputStream == null) { 
+            if (inputStream == null) {
                 // Nothing to do.
-                mListener.OnComplete("input stream equals null", NO_INPUT_STREAM_EXCEPTION, ERROR);
                 Log.v("mytag", "input stream equals null: " + mUri.toString());
-                return null;
+                return new ListenerArguments("input stream equals null", NO_INPUT_STREAM_EXCEPTION, ERROR);
             }
 
             reader = new BufferedReader(new InputStreamReader(inputStream));
             responseString = reader.readLine();
 
-        } catch (IOException e) {
-            mListener.OnComplete("IOException caught: " + e.toString(), IOEXCEPTION, ERROR);
-            Log.v("mytag", "IOException caught: " + e.toString());
-            return null;
-        } finally {
-            if (urlConnection != null) {
-                urlConnection.disconnect();
-            }
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (final IOException e) {
-                    mListener.OnComplete("IOException caught trying to close reader...: " + e.toString(), IOEXCEPTION, ERROR);
-                    Log.v("mytag", "IOException caught trying to close reader...: " + e.toString());
-                    return null;
-                }
-            }
+            urlConnection.disconnect();
+            reader.close();
+
+        } catch (java.net.SocketException e) {
+            return new ListenerArguments("not connected to the internet", NOT_CONNECTED, WARNING);
+        } catch (java.net.SocketTimeoutException e) {
+            return new ListenerArguments("not connected to the internet", NOT_CONNECTED, WARNING);
+        } catch (java.net.UnknownHostException e) {
+            return new ListenerArguments("not connected to the internet", NOT_CONNECTED, WARNING);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ListenerArguments("Exception caught: " + e.toString(), IOEXCEPTION, ERROR);
 
         }
-        return responseString;
+
+        return new ListenerArguments(responseString, SUCCESSFUL, SUCCESSFUL);
     }
 
     @Override
@@ -103,12 +126,34 @@ public class MyServerClass extends AsyncTask<Object, String, String> {
     }
 
     @Override
-    protected void onPostExecute(String result) {
-        if(result==null){
-            mListener.OnComplete("", NULL_RESULT, WARNING);
-        }else{
-            mListener.OnComplete(result, SUCCESSFUL, SUCCESSFUL);
+    protected void onPostExecute(ListenerArguments result) {
+        if (result.getResultType() == MyServerClass.ERROR) {
+            Log.v("mytag", "error: " + result.getResult());
+            if (mSendError)
+                new ExceptionHandler(mContext, result.getResult()).execute();
         }
+        mListener.OnComplete(result.getResult(), result.getResultCode(), result.getResultType());
+    }
+
+    public static boolean isConnected(Context context) {
+        ConnectivityManager cm =
+                (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+
+
+        if(activeNetwork != null){
+            if(activeNetwork.isConnectedOrConnecting()){
+                return true;
+            }else{
+                Log.v("mytag", "not connected because of network info");
+                return false;
+            }
+        }
+
+        Log.v("mytag", "not connected because network info is null");
+        return false;
+
 
     }
 }

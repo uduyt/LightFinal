@@ -62,12 +62,12 @@ import java.util.Date;
 import java.util.Locale;
 
 import backend.LoginTask;
+import backend.MyServerClass;
 import backend.OnTaskCompletedListener;
 
 public class LoginActivity extends AppCompatActivity {
     private CallbackManager callbackManager;
     private LoginButton loginButton;
-    private ProgressBar pbLogin;
     private TextView tvLogin;
     private Button btLoginButton;
     private LinearLayout llLogin, llLogo;
@@ -88,7 +88,7 @@ public class LoginActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
 
-        if (mAuth.getCurrentUser() != null & Profile.getCurrentProfile() != null) {
+        if (mAuth.getCurrentUser() != null && Profile.getCurrentProfile() != null) {
             GoToMainActivity();
         } else {
             LoginManager.getInstance().logOut();
@@ -111,10 +111,6 @@ public class LoginActivity extends AppCompatActivity {
 
         loginButton = (LoginButton) findViewById(R.id.lb_facebook_login);
         loginButton.setReadPermissions("email", "public_profile");
-
-
-        /*pbLogin = (ProgressBar) findViewById(R.id.pb_login);
-        tvLogin = (TextView) findViewById(R.id.tv_login_text);*/
 
         btLoginButton = (Button) findViewById(R.id.bt_facebook_login);
         btLoginButton.setOnClickListener(new View.OnClickListener() {
@@ -158,7 +154,15 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onError(FacebookException exception) {
                 // App code
-                Toast.makeText(mContext, "error al iniciar sesion en facebook", Toast.LENGTH_LONG).show();
+                findViewById(R.id.fl_login_pb).setVisibility(View.GONE);
+
+                if(MyServerClass.isConnected(mContext)){
+                    Toast.makeText(mContext, "error al iniciar sesion en facebook", Toast.LENGTH_LONG).show();
+                }else{
+                    Toast.makeText(mContext, "Necesitas estar conectado a internet para iniciar sesión", Toast.LENGTH_LONG).show();
+                }
+
+
             }
         });
 
@@ -181,7 +185,6 @@ public class LoginActivity extends AppCompatActivity {
                         Log.v("LoginActivity", response.toString());
 
                         // Application code
-
                         try {
                             String email = object.getString("email");
                             String gender = object.getString("gender");

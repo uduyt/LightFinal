@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import backend.GetRankings;
+import backend.MyServerClass;
 import backend.OnTaskCompletedListener;
 
 
@@ -75,35 +76,44 @@ public class RankingFragment extends Fragment{
 
         recyclerView=(RecyclerView) myView.findViewById(R.id.rv_ranking);
 
-        new GetRankings(new OnTaskCompletedListener() {
+        new GetRankings(getActivity(),new OnTaskCompletedListener() {
             @Override
             public void OnComplete(String result, int resultCode, int resultType) {
-                Log.d("tagg", result);
-                try {
-                    JSONArray jsonRankings= new JSONArray(result);
-                    JSONObject jsonRanking;
-                    mRankings=new ArrayList<Bundle>();
-                    Bundle ranking;
-                    for(int i=0;i<jsonRankings.length();i++) {
-                        jsonRanking = jsonRankings.getJSONObject(i);
-                        ranking = new Bundle();
-                        ranking.putString("uid", jsonRanking.getString("facebook_id"));
-                        ranking.putString("name", jsonRanking.getString("name"));
-                        ranking.putString("lights", jsonRanking.getString("lights"));
-                        mRankings.add(ranking);
+
+                if(resultCode== MyServerClass.SUCCESSFUL){
+                    try {
+                        JSONArray jsonRankings= new JSONArray(result);
+                        JSONObject jsonRanking;
+                        mRankings=new ArrayList<Bundle>();
+                        Bundle ranking;
+                        for(int i=0;i<jsonRankings.length();i++) {
+                            jsonRanking = jsonRankings.getJSONObject(i);
+                            ranking = new Bundle();
+                            ranking.putString("uid", jsonRanking.getString("facebook_id"));
+                            ranking.putString("name", jsonRanking.getString("name"));
+                            ranking.putString("lights", jsonRanking.getString("lights"));
+                            mRankings.add(ranking);
+                        }
+
+                        mAdapter = new RankingAdapter(mRankings, getActivity());
+                        RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(getActivity());
+                        recyclerView.setLayoutManager(mLayoutManager);
+                        recyclerView.setItemAnimator(new DefaultItemAnimator());
+                        recyclerView.setAdapter(mAdapter);
+
+
+                        mAdapter.notifyDataSetChanged();
+                    } catch (JSONException e) {
+                        e.printStackTrace();
                     }
 
-                    mAdapter = new RankingAdapter(mRankings, getActivity());
-                    RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(getActivity());
-                    recyclerView.setLayoutManager(mLayoutManager);
-                    recyclerView.setItemAnimator(new DefaultItemAnimator());
-                    recyclerView.setAdapter(mAdapter);
-
-
-                mAdapter.notifyDataSetChanged();
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                    myView.findViewById(R.id.ll_market_not_connected).setVisibility(View.GONE);
+                    myView.findViewById(R.id.rv_ranking).setVisibility(View.VISIBLE);
+                }else if(resultCode== MyServerClass.NOT_CONNECTED){
+                    myView.findViewById(R.id.ll_market_not_connected).setVisibility(View.VISIBLE);
+                    myView.findViewById(R.id.rv_ranking).setVisibility(View.GONE);
                 }
+
 
             }
         }).execute();
