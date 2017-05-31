@@ -105,10 +105,14 @@ public class MyServerClass extends AsyncTask<Object, String, ListenerArguments> 
             reader.close();
 
         } catch (java.net.SocketException e) {
+            Log.v("mytag", "not connected because of socket ex");
             return new ListenerArguments("not connected to the internet", NOT_CONNECTED, WARNING);
+
         } catch (java.net.SocketTimeoutException e) {
+            Log.v("mytag", "not connected because of socket timeout");
             return new ListenerArguments("not connected to the internet", NOT_CONNECTED, WARNING);
         } catch (java.net.UnknownHostException e) {
+            Log.v("mytag", "not connected because of unknown host");
             return new ListenerArguments("not connected to the internet", NOT_CONNECTED, WARNING);
         } catch (Exception e) {
             e.printStackTrace();
@@ -144,6 +148,7 @@ public class MyServerClass extends AsyncTask<Object, String, ListenerArguments> 
 
         if(activeNetwork != null){
             if(activeNetwork.isConnectedOrConnecting()){
+                Log.v("mytag", "network says connected");
                 return true;
             }else{
                 Log.v("mytag", "not connected because of network info");

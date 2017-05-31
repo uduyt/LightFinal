@@ -11,6 +11,7 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -52,6 +53,7 @@ import com.squareup.picasso.Picasso;
 import java.io.IOException;
 
 import backend.ExceptionHandler;
+import backend.GetAdminLevel;
 import backend.GetLights;
 import backend.MyServerClass;
 import backend.OnLocationUpdateListener;
@@ -80,7 +82,10 @@ public class MainActivity extends AppCompatActivity
     private double mSpeed, mDistance, mLights;
     private View header;
     public boolean serviceBound=false;
+    public OnLocationUpdateListener mLocationListener;
     private TextView tvTime, tvDistance, tvSpeed, tvGPS, tvDialogLights;
+    private int i;
+    private long mTime;
 
 
     @Override
@@ -177,6 +182,19 @@ public class MainActivity extends AppCompatActivity
                 GoToFragment("home");
             }
         });
+
+
+        //If admin then show new tab
+        new GetAdminLevel(mContext, new OnTaskCompletedListener() {
+            @Override
+            public void OnComplete(String result, int resultCode, int resultType) {
+                if(resultCode==MyServerClass.SUCCESSFUL && Double.parseDouble(result)>=90){
+                    navigationView.getMenu().findItem(R.id.nav_admin).setVisible(true);
+                }
+            }
+        }).execute();
+
+
         GoToFragment("home");
 
         SetUpLocation();
@@ -198,10 +216,6 @@ public class MainActivity extends AppCompatActivity
             Snackbar.make(findViewById(R.id.cl_container), "Va demasiado rápido...", Snackbar.LENGTH_SHORT).show();
 
         }
-
-
-        navigationView.getMenu().getItem(2).setVisible(false);
-
     }
 
     @Override
@@ -230,7 +244,9 @@ public class MainActivity extends AppCompatActivity
             GoToFragment("market");
         } else if (id == R.id.nav_ranking) {
             GoToFragment("ranking");
-        } else if (id == R.id.nav_logout) {
+        } else if (id == R.id.nav_admin) {
+            GoToFragment("admin");
+        }else if (id == R.id.nav_logout) {
 
             LoginManager.getInstance().logOut();
             FirebaseAuth.getInstance().signOut();
@@ -296,7 +312,6 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-
     public void GoToFragment(String fragment, Bundle extras) {
 
         for (int i = 0; i < navigationView.getMenu().size(); i++) {
@@ -341,6 +356,15 @@ public class MainActivity extends AppCompatActivity
                 fragmentTransaction.replace(R.id.container, mMarketFragment);
                 fragmentTransaction.commit();
                 break;
+
+            case "admin":
+                AdminFragment mAdminFragment = new AdminFragment();
+                mAdminFragment.setArguments(extras);
+                fragmentTransaction = getSupportFragmentManager().beginTransaction();
+                fragmentTransaction.addToBackStack("admin");
+                fragmentTransaction.replace(R.id.container, mAdminFragment);
+                fragmentTransaction.commit();
+                break;
         }
         drawer.closeDrawer(GravityCompat.START);
     }
@@ -373,8 +397,6 @@ public class MainActivity extends AppCompatActivity
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
     }
-
-
 
     public void ShowRunningActivityDialog() {
         dialogWalk.show();
@@ -427,6 +449,10 @@ public class MainActivity extends AppCompatActivity
     public void onLocationChanged(Location location) {
         Log.d("location_update", "location2 changed to: " + location.toString());
         mLastLocation = location;
+
+        if(mLocationListener!=null){
+            mLocationListener.OnLocationLoad(location);
+        }
     }
 
     public LocationRequest createLocationRequest(int accuracy) {
@@ -497,18 +523,22 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-    public void RequestLocationOnce(final OnLocationUpdateListener callback, int accuracy) {
-        try {
-            Log.d("location_update", "location requested");
+    public void RequestLocationOnce(final float accuracy, int timeout, final OnLocationUpdateListener callback) {
 
-            if (mLastLocation != null)
-                callback.OnLocationLoad(mLastLocation);
-            else
+        new CountDownTimer(timeout, 1000) {
+
+            public void onTick(long millisUntilFinished) {
+                if(mLastLocation.getAccuracy()<accuracy){
+                    callback.OnLocationLoad(mLastLocation);
+                    this.cancel();
+                }
+            }
+
+            public void onFinish() {
                 callback.OnLocationTimeOut(mLastLocation);
+            }
+        }.start();
 
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        }
 
     }
 
