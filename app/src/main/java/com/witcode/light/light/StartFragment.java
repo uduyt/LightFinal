@@ -35,6 +35,8 @@ import com.google.android.gms.location.LocationRequest;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import backend.GetDistanceToNearestContainer;
+import backend.MyServerClass;
 import backend.OnLocationUpdateListener;
 import backend.OnTaskCompletedListener;
 import backend.SyncContainer;
@@ -61,9 +63,8 @@ public class StartFragment extends Fragment {
     private int currentActivity = -1;
     final static int ACTIVITY_WALK = 1;
     final static int ACTIVITY_BIKE = 2;
-    private boolean recycleSynced=false;
+    private boolean recycleSynced = false;
     private int z = 0;
-
     private TextView tvTime, tvDistance, tvSpeed, tvGPS, tvLights;
     private MaterialDialog dialogWalk = null;
 
@@ -199,7 +200,7 @@ public class StartFragment extends Fragment {
                 .onNegative(new MaterialDialog.SingleButtonCallback() {
                     @Override
                     public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                        dialog.dismiss();
+                        mBusDialog.dismiss();
                         Snackbar.make(myView, "Se ha cancelado la acción", Snackbar.LENGTH_SHORT).show();
                     }
                 })
@@ -215,27 +216,35 @@ public class StartFragment extends Fragment {
                                 .progress(true, 0)
                                 .show();
 
-                        ((MainActivity) getActivity()).RequestLocationOnce(new OnLocationUpdateListener() {
+                        ((MainActivity) getActivity()).RequestLocationOnce(40,8000,new OnLocationUpdateListener() {
                             @Override
                             public void OnLocationLoad(Location location) {
                                 Log.v("location_update", "loc_recieved");
-                                new ValidateBus(((EditText) mBusDialog.findViewById(R.id.et_dialog_line)).getText().toString(), location, new OnTaskCompletedListener() {
+                                new ValidateBus(getActivity(), ((EditText) mBusDialog.findViewById(R.id.et_dialog_line)).getText().toString(), location, new OnTaskCompletedListener() {
                                     @Override
                                     public void OnComplete(String result, int resultCode, int resultType) {
 
-                                        Log.v("location_update", "val_recieved");
                                         if (resultCode == ValidateBus.VALIDATED) {
-                                            new UpdateLights(10, new OnTaskCompletedListener() {
+                                            new UpdateLights(getActivity(), 10, new OnTaskCompletedListener() {
                                                 @Override
                                                 public void OnComplete(String result, int resultCode, int resultType) {
-                                                    Snackbar.make(myView, "La acción se ha realizado con éxito, has ganado 10 lights", Snackbar.LENGTH_SHORT).show();
                                                     progressDialog.dismiss();
-                                                    Log.v("location_update", "all_good_in_bus_validate");
+                                                    if(resultCode==MyServerClass.SUCCESSFUL){
+                                                        Snackbar.make(myView, "La acción se ha realizado con éxito, has ganado 10 lights", Snackbar.LENGTH_SHORT).show();
+                                                        Log.v("location_update", "all_good_in_bus_validate");
+                                                    }else{
+                                                        Snackbar.make(myView, "Ha habido un problema con el servidor:149", Snackbar.LENGTH_SHORT).setAction("VOLVER A INTENTAR", new View.OnClickListener() {
+                                                            @Override
+                                                            public void onClick(View view) {
+                                                                StartBus();
+                                                            }
+                                                        }).show();
+                                                    }
+
                                                 }
                                             }).execute();
 
                                         } else if (resultCode == ValidateBus.TOO_FAR) {
-                                            Log.v("location_update", "too_far");
                                             Snackbar.make(myView, "La acción no se ha podido validar", Snackbar.LENGTH_SHORT).setAction("VOLVER A INTENTAR", new View.OnClickListener() {
                                                 @Override
                                                 public void onClick(View view) {
@@ -244,10 +253,15 @@ public class StartFragment extends Fragment {
                                             }).show();
                                             progressDialog.dismiss();
                                         } else {
+                                            Snackbar.make(myView, "Ha habido un problema con el servidor:153", Snackbar.LENGTH_SHORT).setAction("VOLVER A INTENTAR", new View.OnClickListener() {
+                                                @Override
+                                                public void onClick(View view) {
+                                                    StartBus();
+                                                }
+                                            }).show();
                                             Log.v("location_update", "strange error");
+                                            progressDialog.dismiss();
                                         }
-
-
                                     }
                                 }).execute();
                             }
@@ -265,13 +279,11 @@ public class StartFragment extends Fragment {
                                     }).show();
                                 }
                             }
-                        }, LocationRequest.PRIORITY_HIGH_ACCURACY);
-                        Log.v("location_update", "loc_req");
+                        });
                     }
                 })
                 .build();
         mBusDialog.show();
-
     }
 
     public void StartRailroad() {
@@ -283,6 +295,95 @@ public class StartFragment extends Fragment {
     }
 
     public void StartRecycle() {
+        mRecycleDialog = new MaterialDialog.Builder(getActivity())
+                .title("Vamos a validar la acción")
+                .titleColor(Color.parseColor("#ffffff"))
+                .content("Posiciónate a menos de 10m de un contenedor para validar la acción")
+                .positiveText("Validar")
+                .negativeText("Cancelar")
+                .contentColorRes(R.color.white)
+                .backgroundColor(getActivity().getResources().getColor(R.color.PrimaryDark))
+                .onNegative(new MaterialDialog.SingleButtonCallback() {
+                    @Override
+                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                        mRecycleDialog.dismiss();
+                        Snackbar.make(myView, "Se ha cancelado la acción", Snackbar.LENGTH_SHORT).show();
+                    }
+                })
+                .onPositive(new MaterialDialog.SingleButtonCallback() {
+                    @Override
+                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+
+                        mRecycleDialog.dismiss();
+                        final MaterialDialog progressDialog = new MaterialDialog.Builder(getActivity())
+                                .title("Por favor, espere")
+                                .content("Estamos validando su acción")
+                                .progress(true, 0)
+                                .show();
+
+                        ((MainActivity) getActivity()).RequestLocationOnce(40, 8000, new OnLocationUpdateListener() {
+                            @Override
+                            public void OnLocationLoad(final Location location) {
+                                Log.v("location_update", "loc_recieved");
+
+                                new GetDistanceToNearestContainer(getActivity(), location, new OnTaskCompletedListener() {
+                                    @Override
+                                    public void OnComplete(String result, int resultCode, int resultType) {
+                                        if (resultCode == MyServerClass.SUCCESSFUL) {
+
+                                            if (Double.parseDouble(result) < location.getAccuracy() + 10) {
+                                                new UpdateLights(getActivity(), 10, new OnTaskCompletedListener() {
+                                                    @Override
+                                                    public void OnComplete(String result, int resultCode, int resultType) {
+                                                        progressDialog.dismiss();
+                                                        if (resultCode == MyServerClass.SUCCESSFUL) {
+                                                            Snackbar.make(myView, "La acción se ha realizado con éxito, has ganado 10 lights", Snackbar.LENGTH_SHORT).show();
+                                                        } else {
+                                                            Snackbar.make(myView, "Ha habido un problema con el servidor:197", Snackbar.LENGTH_SHORT).show();
+                                                        }
+                                                    }
+                                                }).execute();
+                                            } else {
+                                                progressDialog.dismiss();
+                                                Snackbar.make(myView, "La acción no se ha podido validar", Snackbar.LENGTH_SHORT).setAction("VOLVER A INTENTAR", new View.OnClickListener() {
+                                                    @Override
+                                                    public void onClick(View view) {
+                                                        StartRecycle();
+                                                    }
+                                                }).show();
+                                            }
+                                        } else {
+                                            progressDialog.dismiss();
+                                            Snackbar.make(myView, "La acción no se ha podido validar", Snackbar.LENGTH_SHORT).setAction("VOLVER A INTENTAR", new View.OnClickListener() {
+                                                @Override
+                                                public void onClick(View view) {
+                                                    StartRecycle();
+                                                }
+                                            }).show();
+                                        }
+                                    }
+                                }).execute();
+                            }
+
+                            @Override
+                            public void OnLocationTimeOut(Location location) {
+                                Log.v("location_update", "loc_recieved_bad");
+                                progressDialog.dismiss();
+                                Snackbar.make(myView, "Tu posición GPS no es lo suficientemente buena...", Snackbar.LENGTH_SHORT).setAction("VOLVER A INTENTAR", new View.OnClickListener() {
+                                    @Override
+                                    public void onClick(View view) {
+                                        StartRecycle();
+                                    }
+                                }).show();
+                            }
+                        });
+                    }
+                })
+                .build();
+        mRecycleDialog.show();
+    }
+
+    public void StartRecycleSync() {
         mRecycleDialog = new MaterialDialog.Builder(getActivity())
 
                 .titleGravity(GravityEnum.CENTER)
@@ -307,21 +408,21 @@ public class StartFragment extends Fragment {
 
         ivSync.startAnimation(anim);
 
-        OnTaskCompletedListener mListener= new OnTaskCompletedListener() {
+        OnTaskCompletedListener mListener = new OnTaskCompletedListener() {
             @Override
             public void OnComplete(String result, int resultCode, int resultType) {
 
-                if(mRecycleDialog.isShowing()){
-                    Log.d("container","result:  " + result);
-                    switch (resultCode){
+                if (mRecycleDialog.isShowing()) {
+                    Log.d("container", "result:  " + result);
+                    switch (resultCode) {
                         case SyncContainer.SYNCING:
-                            (new SyncContainer(this)).execute();
+                            (new SyncContainer(getActivity(), this)).execute();
 
                             break;
                         case SyncContainer.SYNCED:
 
 
-                            if(!recycleSynced){
+                            if (!recycleSynced) {
                                 flRecycleDialogFirst.animate()
                                         .translationY(-flRecycleDialogFirst.getHeight())
                                         .alpha(0.0f)
@@ -335,12 +436,12 @@ public class StartFragment extends Fragment {
                                         .setDuration(800);
 
                             }
-                            recycleSynced=true;
-                            (new SyncContainer(this)).execute();
+                            recycleSynced = true;
+                            (new SyncContainer(getActivity(), this)).execute();
                             break;
                         case SyncContainer.SYNC_END:
 
-                            if(recycleSynced){
+                            if (recycleSynced) {
                                 flRecycleDialogSecond.animate()
                                         .translationY(-flRecycleDialogSecond.getHeight())
                                         .alpha(0.0f)
@@ -359,7 +460,7 @@ public class StartFragment extends Fragment {
                                                 mRecycleDialog.setActionButton(DialogAction.POSITIVE, "CERRAR");
                                             }
                                         });
-                            }else {
+                            } else {
                                 flRecycleDialogFirst.animate()
                                         .translationY(-flRecycleDialogFirst.getHeight())
                                         .alpha(0.0f)
@@ -390,43 +491,12 @@ public class StartFragment extends Fragment {
             }
         };
 
-        (new SyncContainer(mListener)).execute();
+        (new SyncContainer(getActivity(), mListener)).execute();
 
         mRecycleDialog.show();
-        recycleSynced=false;
+        recycleSynced = false;
     }
 
-    public void DialogStartWalk() {
-        seconds = 0;
-        mLights = 0;
-        if (walkTimer != null)
-            walkTimer.cancel();
-
-        walkTimer = new Timer();
-        walkTimer.scheduleAtFixedRate(new MyTimerTask(), 0, 1000);
-    }
-
-    public void DialogStopWalk() {
-        seconds = 0;
-        speed = 0;
-        distance = 0;
-        walkTimer.cancel();
-    }
-
-    public void UpdateWalkUI() {
-        if (hours > 0) {
-            tvTime.setText(hours + "h " + minutes % 60 + "min " + seconds % 60 + "s");
-        } else if (minutes > 0) {
-            tvTime.setText(minutes + "min " + seconds % 60 + "s");
-        } else {
-            tvTime.setText(seconds + "s");
-        }
-        tvSpeed.setText(String.format("%.2f", speed) + "km/h");
-        tvDistance.setText(String.format("%.2f", distance) + "m");
-        tvGPS.setText(locationState);
-        tvLights.setText(String.format("%.2f", mLights));
-
-    }
 
     private class MyTimerTask extends TimerTask {
         @Override

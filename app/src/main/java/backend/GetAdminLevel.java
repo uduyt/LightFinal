@@ -5,11 +5,11 @@ import android.net.Uri;
 
 import com.facebook.Profile;
 
-public class GetRankings extends MyServerClass implements OnTaskCompletedListener {
+public class GetAdminLevel extends MyServerClass implements OnTaskCompletedListener {
 
     private OnTaskCompletedListener mCallback;
 
-    public GetRankings(Context context, OnTaskCompletedListener listener) {
+    public GetAdminLevel(Context context, OnTaskCompletedListener listener) {
         super(context);
         mCallback = listener;
 
@@ -19,7 +19,7 @@ public class GetRankings extends MyServerClass implements OnTaskCompletedListene
     private void SetUp() {
 
         final String REQUEST_BASE_URL =
-                "http://www.sustainabilight.com/functions/get_rankings.php?";
+                "http://www.sustainabilight.com/functions/get_admin_level.php?";
 
         Uri builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
                 .appendQueryParameter("facebook_id", Profile.getCurrentProfile().getId())
@@ -34,9 +34,6 @@ public class GetRankings extends MyServerClass implements OnTaskCompletedListene
     @Override
     public void OnComplete(String result, int resultCode, int resultType) {
         if (resultType != MyServerClass.SUCCESSFUL) {
-            if (resultCode == MyServerClass.NULL_RESULT) {
-                //maybe it doesnt matter
-            }
 
             //Send listener back
             mCallback.OnComplete(result, resultCode, resultType);
@@ -48,6 +45,5 @@ public class GetRankings extends MyServerClass implements OnTaskCompletedListene
     }
 
 }
-
 
 

@@ -11,6 +11,7 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -49,7 +50,12 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
+import java.io.IOException;
+
+import backend.ExceptionHandler;
+import backend.GetAdminLevel;
 import backend.GetLights;
+import backend.MyServerClass;
 import backend.OnLocationUpdateListener;
 import backend.OnTaskCompletedListener;
 import backend.ServiceBinder;
@@ -74,7 +80,12 @@ public class MainActivity extends AppCompatActivity
     private MaterialDialog mDialog, dialogWalk;
     private static Handler mHandler;
     private double mSpeed, mDistance, mLights;
+    private View header;
+    public boolean serviceBound=false;
+    public OnLocationUpdateListener mLocationListener;
     private TextView tvTime, tvDistance, tvSpeed, tvGPS, tvDialogLights;
+    private int i;
+    private long mTime;
 
 
     @Override
@@ -108,6 +119,24 @@ public class MainActivity extends AppCompatActivity
             @Override
             public void onDrawerOpened(View drawerView) {
 
+                if (Profile.getCurrentProfile() != null & FirebaseAuth.getInstance().getCurrentUser() != null) {
+
+
+                    new GetLights(mContext,new OnTaskCompletedListener() {
+                        @Override
+                        public void OnComplete(String result, int resultCode, int resultType) {
+                            if (resultCode == GetLights.SUCCESSFUL) {
+                                header.findViewById(R.id.ll_connected).setVisibility(View.VISIBLE);
+                                header.findViewById(R.id.ll_not_connected).setVisibility(View.GONE);
+                                tvLights.setText(result);
+                            }else if(resultCode == MyServerClass.NOT_CONNECTED){
+                                header.findViewById(R.id.ll_connected).setVisibility(View.GONE);
+                                header.findViewById(R.id.ll_not_connected).setVisibility(View.VISIBLE);
+                            }
+                        }
+                    }).execute();
+
+                }
             }
 
             @Override
@@ -117,7 +146,8 @@ public class MainActivity extends AppCompatActivity
 
             @Override
             public void onDrawerStateChanged(int newState) {
-                UpdateLights();
+
+
             }
         });
         navigationView = (NavigationView) findViewById(R.id.nav_view);
@@ -127,7 +157,7 @@ public class MainActivity extends AppCompatActivity
             navigationView.getMenu().getItem(i).setChecked(false);
         }
 
-        final View header = navigationView.getHeaderView(0);
+        header = navigationView.getHeaderView(0);
         tvLights = (TextView) header.findViewById(R.id.tv_nav_lights);
 
         CircleImageView civ = (CircleImageView) header.findViewById(R.id.civ_profile);
@@ -137,7 +167,6 @@ public class MainActivity extends AppCompatActivity
         Picasso.with(this).load(uri).into(civ, new Callback() {
             @Override
             public void onSuccess() {
-                UpdateLights();
                 ((TextView) header.findViewById(R.id.tv_nav_name)).setText(Profile.getCurrentProfile().getName());
             }
 
@@ -153,6 +182,19 @@ public class MainActivity extends AppCompatActivity
                 GoToFragment("home");
             }
         });
+
+
+        //If admin then show new tab
+        new GetAdminLevel(mContext, new OnTaskCompletedListener() {
+            @Override
+            public void OnComplete(String result, int resultCode, int resultType) {
+                if(resultCode==MyServerClass.SUCCESSFUL && Double.parseDouble(result)>=90){
+                    navigationView.getMenu().findItem(R.id.nav_admin).setVisible(true);
+                }
+            }
+        }).execute();
+
+
         GoToFragment("home");
 
         SetUpLocation();
@@ -169,9 +211,10 @@ public class MainActivity extends AppCompatActivity
 
         SetUpDialog();
 
-        if(getIntent().getAction().equals("too_fast")){
+        if (getIntent() != null && getIntent().getAction() != null && getIntent().getAction().equals("too_fast")) {
             StopWalkService();
             Snackbar.make(findViewById(R.id.cl_container), "Va demasiado rápido...", Snackbar.LENGTH_SHORT).show();
+
         }
     }
 
@@ -201,7 +244,9 @@ public class MainActivity extends AppCompatActivity
             GoToFragment("market");
         } else if (id == R.id.nav_ranking) {
             GoToFragment("ranking");
-        } else if (id == R.id.nav_logout) {
+        } else if (id == R.id.nav_admin) {
+            GoToFragment("admin");
+        }else if (id == R.id.nav_logout) {
 
             LoginManager.getInstance().logOut();
             FirebaseAuth.getInstance().signOut();
@@ -248,7 +293,7 @@ public class MainActivity extends AppCompatActivity
                         StopWalkService();
                         mLights = Math.round(mLights);
                         int l = (int) mLights;
-                        new UpdateLights(l, new OnTaskCompletedListener() {
+                        new UpdateLights(mContext,l, new OnTaskCompletedListener() {
                             @Override
                             public void OnComplete(String result, int resultCode, int resultType) {
                                 Snackbar.make(findViewById(R.id.cl_container), "Se ha terminado la acción, has ganado " + (int) mLights + " lights", Snackbar.LENGTH_SHORT).show();
@@ -266,7 +311,6 @@ public class MainActivity extends AppCompatActivity
         dialogWalk.setCanceledOnTouchOutside(false);
 
     }
-
 
     public void GoToFragment(String fragment, Bundle extras) {
 
@@ -292,9 +336,9 @@ public class MainActivity extends AppCompatActivity
                 fragmentTransaction.commit();
                 break;
             case "start":
-                if(WalkService.IS_SERVICE_RUNNING){
+                if (WalkService.IS_SERVICE_RUNNING) {
                     Snackbar.make(findViewById(R.id.cl_container), "Termine la actividad actual para comenzar una nueva", Snackbar.LENGTH_SHORT).show();
-                }else{
+                } else {
                     StartFragment mStartFragment = new StartFragment();
                     mStartFragment.setArguments(extras);
                     fragmentTransaction = getSupportFragmentManager().beginTransaction();
@@ -310,6 +354,15 @@ public class MainActivity extends AppCompatActivity
                 fragmentTransaction = getSupportFragmentManager().beginTransaction();
                 fragmentTransaction.addToBackStack("market");
                 fragmentTransaction.replace(R.id.container, mMarketFragment);
+                fragmentTransaction.commit();
+                break;
+
+            case "admin":
+                AdminFragment mAdminFragment = new AdminFragment();
+                mAdminFragment.setArguments(extras);
+                fragmentTransaction = getSupportFragmentManager().beginTransaction();
+                fragmentTransaction.addToBackStack("admin");
+                fragmentTransaction.replace(R.id.container, mAdminFragment);
                 fragmentTransaction.commit();
                 break;
         }
@@ -343,24 +396,6 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
-    }
-
-    public void UpdateLights() {
-
-        if (Profile.getCurrentProfile() != null & FirebaseAuth.getInstance().getCurrentUser() != null) {
-
-
-            new GetLights(new OnTaskCompletedListener() {
-                @Override
-                public void OnComplete(String result, int resultCode, int resultType) {
-                    if (resultCode == GetLights.SUCCESSFUL) {
-                        tvLights.setText(result);
-
-                    }
-                }
-            }).execute();
-
-        }
     }
 
     public void ShowRunningActivityDialog() {
@@ -414,6 +449,10 @@ public class MainActivity extends AppCompatActivity
     public void onLocationChanged(Location location) {
         Log.d("location_update", "location2 changed to: " + location.toString());
         mLastLocation = location;
+
+        if(mLocationListener!=null){
+            mLocationListener.OnLocationLoad(location);
+        }
     }
 
     public LocationRequest createLocationRequest(int accuracy) {
@@ -484,18 +523,22 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-    public void RequestLocationOnce(final OnLocationUpdateListener callback, int accuracy) {
-        try {
-            Log.d("location_update", "location requested");
+    public void RequestLocationOnce(final float accuracy, int timeout, final OnLocationUpdateListener callback) {
 
-            if (mLastLocation != null)
-                callback.OnLocationLoad(mLastLocation);
-            else
+        new CountDownTimer(timeout, 1000) {
+
+            public void onTick(long millisUntilFinished) {
+                if(mLastLocation.getAccuracy()<accuracy){
+                    callback.OnLocationLoad(mLastLocation);
+                    this.cancel();
+                }
+            }
+
+            public void onFinish() {
                 callback.OnLocationTimeOut(mLastLocation);
+            }
+        }.start();
 
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        }
 
     }
 
@@ -529,6 +572,7 @@ public class MainActivity extends AppCompatActivity
             mBoundService = ((WalkService.LocalBinder) service).getService();
             mBoundService.mActivity = (MainActivity) mContext;
             ShowRunningActivityDialog();
+            serviceBound=true;
             Log.i("ForegroundService", "service_connected");
         }
 
@@ -611,9 +655,9 @@ public class MainActivity extends AppCompatActivity
     public void UpdateFabActivity() {
         if (WalkService.IS_SERVICE_RUNNING) {
 
-            if(WalkService.CURRENT_ACTIVITY==StartFragment.ACTIVITY_WALK)
+            if (WalkService.CURRENT_ACTIVITY == StartFragment.ACTIVITY_WALK)
                 fabActivity.setImageResource(R.mipmap.ic_fab_walk);
-            else if(WalkService.CURRENT_ACTIVITY==StartFragment.ACTIVITY_BIKE)
+            else if (WalkService.CURRENT_ACTIVITY == StartFragment.ACTIVITY_BIKE)
                 fabActivity.setImageResource(R.mipmap.ic_fab_bike);
 
             fabActivity.setVisibility(View.VISIBLE);
@@ -625,7 +669,8 @@ public class MainActivity extends AppCompatActivity
 
         } else {
             fabActivity.setVisibility(View.GONE);
-            mBoundService=null;
+            mBoundService = null;
         }
     }
+
 }

@@ -1,5 +1,6 @@
 package backend;
 
+import android.content.Context;
 import android.net.Uri;
 
 import com.facebook.Profile;
@@ -9,7 +10,8 @@ public class UpdateLights extends MyServerClass implements OnTaskCompletedListen
     private OnTaskCompletedListener mCallback;
     private int lights;
 
-    public UpdateLights(int l, OnTaskCompletedListener listener) {
+    public UpdateLights(Context context, int l, OnTaskCompletedListener listener) {
+        super(context);
         mCallback=listener;
         lights=l;
 

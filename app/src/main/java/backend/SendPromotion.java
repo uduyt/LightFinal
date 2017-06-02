@@ -1,5 +1,6 @@
 package backend;
 
+import android.content.Context;
 import android.net.Uri;
 
 import com.facebook.Profile;
@@ -10,7 +11,8 @@ public class SendPromotion extends MyServerClass implements OnTaskCompletedListe
     private OnTaskCompletedListener mCallback;
     private MarketItem mMarket;
 
-    public SendPromotion(MarketItem marketItem, OnTaskCompletedListener listener) {
+    public SendPromotion(Context context, MarketItem marketItem, OnTaskCompletedListener listener) {
+        super(context);
         mCallback = listener;
         mMarket=marketItem;
 

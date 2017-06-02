@@ -1,64 +1,100 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="@dimen/nav_header_height"
     android:background="@color/colorPrimary"
-    android:paddingTop="20dp"
-    android:gravity="bottom"
-    android:orientation="horizontal"
-    android:theme="@style/ThemeOverlay.AppCompat.Dark">
+    android:paddingTop="20dp">
 
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="center">
-        <de.hdodenhof.circleimageview.CircleImageView xmlns:app="http://schemas.android.com/apk/res-auto"
-            android:id="@+id/civ_profile"
-            android:layout_width="70dp"
-            android:layout_height="70dp"
-            android:layout_marginBottom="8dp"
-            app:civ_border_color="#FFFFFF"
-            android:src="@mipmap/profile_pic"
-            app:civ_border_width="2dp" />
-        <TextView
-            android:id="@+id/tv_nav_name"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Cargando..."
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:textColor="#ffffff"
-            android:gravity="center"/>
+
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:id="@+id/ll_connected"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/nav_header_height"
+
+        android:gravity="bottom"
+        android:orientation="horizontal"
+
+        android:theme="@style/ThemeOverlay.AppCompat.Dark">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <de.hdodenhof.circleimageview.CircleImageView xmlns:app="http://schemas.android.com/apk/res-auto"
+                android:id="@+id/civ_profile"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_marginBottom="8dp"
+                android:src="@mipmap/profile_pic"
+                app:civ_border_color="#FFFFFF"
+                app:civ_border_width="2dp" />
+
+            <TextView
+                android:id="@+id/tv_nav_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Cargando..."
+                android:textColor="#ffffff"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_nav_lights"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:text="..."
+                android:textColor="#ffffff"
+                android:textSize="28sp" />
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:src="@mipmap/light" />
+        </LinearLayout>
+
 
     </LinearLayout>
 
     <LinearLayout
-        android:layout_width="0dp"
+        android:id="@+id/ll_not_connected"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="1"
+        android:orientation="horizontal"
         android:gravity="center"
-        android:orientation="horizontal">
-
+        android:visibility="gone">
         <TextView
-            android:id="@+id/tv_nav_lights"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:gravity="center"
+            android:layout_marginRight="10dp"
+            android:text="No estás conectado a internet"
             android:textColor="#ffffff"
-            android:textSize="28sp"
-            android:text="0"/>
+            android:textStyle="bold"/>
         <ImageView
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center"
-            android:gravity="center"
-            android:src="@mipmap/light"/>
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_network_locked_black_24dp"/>
+
     </LinearLayout>
 
 
-
-</LinearLayout>
+</FrameLayout>

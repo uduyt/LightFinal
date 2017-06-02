@@ -17,25 +17,28 @@
             android:layout_height="wrap_content"
             app:elevation="5dp">
 
-                <android.support.v7.widget.Toolbar
-                    android:id="@+id/toolbar"
-                    android:layout_width="match_parent"
-                    android:layout_height="?android:attr/actionBarSize"
-                   />
+            <android.support.v7.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?android:attr/actionBarSize" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="?android:attr/actionBarSize"
-                android:padding="6dp"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:padding="6dp">
+
                 <ImageView
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:src="@drawable/ic_ranking_white" />
+
                 <View
                     android:layout_width="1dp"
                     android:layout_height="match_parent"
-                    android:background="#ffffff"/>
+                    android:background="#ffffff" />
+
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
@@ -43,25 +46,76 @@
                     android:gravity="center"
                     android:text="Usuario"
                     android:textColor="#ffffff"
-                    android:textSize="20sp"/>
+                    android:textSize="20sp" />
+
                 <View
                     android:layout_width="1dp"
                     android:layout_height="match_parent"
-                    android:background="#ffffff"/>
+                    android:background="#ffffff" />
+
                 <ImageView
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:src="@mipmap/light"/>
+                    android:src="@mipmap/light" />
 
             </LinearLayout>
 
         </android.support.design.widget.AppBarLayout>
 
-        <android.support.v7.widget.RecyclerView
-            android:id="@+id/rv_ranking"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
+            android:layout_height="match_parent">
+
+            <android.support.v7.widget.RecyclerView
+                android:id="@+id/rv_ranking"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+            <LinearLayout
+                android:id="@+id/ll_market_not_connected"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginRight="10dp"
+                        android:text="No estás conectado a internet"
+                        android:textColor="@color/colorPrimaryDark"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@drawable/ic_network_locked_black_24dp"
+                        android:tint="@color/colorPrimaryDark" />
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/bt_retry_connect"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:padding="16dp"
+                    android:text="VOLVER A INTENTAR"
+                    android:textColor="#ffffff"
+                    app:backgroundTint="@color/colorPrimaryDark" />
+            </LinearLayout>
+
+        </FrameLayout>
+
     </LinearLayout>
 
 </android.support.design.widget.CoordinatorLayout>

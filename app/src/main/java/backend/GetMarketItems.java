@@ -1,6 +1,8 @@
 package backend;
 
+import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
 import com.facebook.Profile;
 
@@ -8,7 +10,8 @@ public class GetMarketItems extends MyServerClass implements OnTaskCompletedList
 
     private OnTaskCompletedListener mCallback;
 
-    public GetMarketItems(OnTaskCompletedListener listener) {
+    public GetMarketItems(Context context, OnTaskCompletedListener listener) {
+        super(context);
         mCallback = listener;
 
         SetUp();
@@ -38,7 +41,7 @@ public class GetMarketItems extends MyServerClass implements OnTaskCompletedList
 
             //Send exception to server
 
-
+            Log.v("mytag", "listener_sent");
             //Send listener back
             mCallback.OnComplete(result, resultCode, resultType);
 

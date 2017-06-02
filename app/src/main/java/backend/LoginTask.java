@@ -17,6 +17,7 @@ public class LoginTask extends MyServerClass implements OnTaskCompletedListener 
     public static final int NEED_UPDATE=2;
 
     public LoginTask(Context context, String gender, String email, OnTaskCompletedListener listener) {
+        super(context);
         mCallback = listener;
         mGender=gender;
         mEmail=email;
