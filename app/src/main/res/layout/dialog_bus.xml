@@ -2,6 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:background="@color/PrimaryDark">
 
     <LinearLayout
@@ -25,6 +26,14 @@
             android:maxLines="1"
             android:textColor="#ffffffff"
             android:textColorHint="#88ffffff" />
+
+        <Spinner
+            android:id="@+id/sp_bus"
+            android:layout_marginTop="12dp"
+            app:backgroundTint="@color/white"
+            android:layout_width="wrap_content"
+
+            android:layout_height="wrap_content" />
 
     </LinearLayout>
 

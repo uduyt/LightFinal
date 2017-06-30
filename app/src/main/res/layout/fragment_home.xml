@@ -66,43 +66,56 @@
 
         </FrameLayout>
 
-        <LinearLayout
+        <android.support.v4.widget.NestedScrollView
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="10dp"
-            android:orientation="vertical">
+            android:layout_height="match_parent">
 
-            <android.support.v7.widget.CardView
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="6dp"
-                app:contentPadding="20dp"
-                app:cardBackgroundColor="@color/PrimaryDark">
+                android:layout_height="match_parent"
+                android:padding="10dp"
+                android:orientation="vertical">
 
-                <LinearLayout
+                <android.support.v7.widget.CardView
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical">
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="6dp"
+                    app:contentPadding="20dp"
+                    app:cardBackgroundColor="@color/PrimaryDark">
 
-                    <ImageView
-                        android:layout_width="60dp"
-                        android:layout_height="60dp"
-                        android:src="@drawable/ic_notifications"/>
-                    <TextView
+                    <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:gravity="center_horizontal"
-                        android:text="En esta pantalla se mostrarán tus notificaciones"
-                        android:textColor="#ffffff"
-                        android:layout_marginTop="14dp"
-                        android:textSize="20sp"
-                        android:textStyle="bold"/>
-                </LinearLayout>
+                        android:orientation="vertical">
 
-            </android.support.v7.widget.CardView>
-        </LinearLayout>
+                        <ImageView
+                            android:layout_width="60dp"
+                            android:layout_height="60dp"
+                            android:src="@drawable/ic_notifications"/>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_horizontal"
+                            android:text="En esta pantalla se mostrarán tus notificaciones"
+                            android:textColor="#ffffff"
+                            android:layout_marginTop="14dp"
+                            android:textSize="20sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+
+                </android.support.v7.widget.CardView>
+
+                <android.support.v7.widget.RecyclerView
+                    android:id="@+id/rv_notifications"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"/>
+            </LinearLayout>
+
+        </android.support.v4.widget.NestedScrollView>
+
     </LinearLayout>
 
     <android.support.design.widget.FloatingActionButton
