@@ -26,7 +26,8 @@ public class ValidateInterurbanBus extends MyServerClass implements OnTaskComple
 
 
 
-    public ValidateInterurbanBus(Context context, String line, Location location, OnTaskCompletedListener listener) {
+    public
+    ValidateInterurbanBus(Context context, String line, Location location, OnTaskCompletedListener listener) {
         super(context);
         mCallback = listener;
         mLocation = location;

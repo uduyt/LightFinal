@@ -13,7 +13,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-public class MyServerClass extends AsyncTask<Object, String, ListenerArguments> {
+public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments> {
 
     private HttpURLConnection urlConnection;
     private Uri mUri;

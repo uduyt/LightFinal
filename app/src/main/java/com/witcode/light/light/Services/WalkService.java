@@ -201,7 +201,7 @@ public class WalkService extends Service implements
                                     else if (CURRENT_ACTIVITY == StartFragment.ACTIVITY_BIKE)
                                         mLights += (distance / 500) * Math.sqrt(speed / 15) * 0.7;
 
-                                    if ((CURRENT_ACTIVITY == StartFragment.ACTIVITY_WALK && speed > 16) || (CURRENT_ACTIVITY == StartFragment.ACTIVITY_BIKE && speed > 60)) {
+                                    if ((CURRENT_ACTIVITY == StartFragment.ACTIVITY_WALK && speed > 25) || (CURRENT_ACTIVITY == StartFragment.ACTIVITY_BIKE && speed > 60)) {
                                         //Too fast
                                         Intent iContentPress = new Intent(mService, MainActivity.class);
                                         iContentPress.setAction("too_fast");

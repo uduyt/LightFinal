@@ -1,8 +1,6 @@
 package com.witcode.light.light.domain;
 
 import android.content.Context;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v7.widget.RecyclerView;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -13,7 +11,7 @@ import com.witcode.light.light.R;
 import com.witcode.light.light.activities.MainActivity;
 import com.witcode.light.light.fragments.HomeFragment;
 
-public class ChallengeNotificationViewHolder extends NotificationViewHolder {
+public class MarketNotificationViewHolder extends NotificationViewHolder {
     private TextView tvTitle, tvSubTitle;
     private ImageView ivImage, ivFav;
     private FrameLayout flClose;
@@ -23,7 +21,7 @@ public class ChallengeNotificationViewHolder extends NotificationViewHolder {
 
 
 
-    public ChallengeNotificationViewHolder(View itemView, Context context, HomeFragment fragment) {
+    public MarketNotificationViewHolder(View itemView, Context context, HomeFragment fragment) {
         super(itemView);
 
         mItemView=itemView;

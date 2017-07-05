@@ -1,53 +1,63 @@
-package com.witcode.light.light;
+package com.witcode.light.light.fragments;
 
-import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.location.Criteria;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v4.widget.NestedScrollView;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.DefaultItemAnimator;
+import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.facebook.Profile;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
+import com.witcode.light.light.R;
+import com.witcode.light.light.activities.MainActivity;
+import com.witcode.light.light.backend.DismissNotification;
+import com.witcode.light.light.backend.GetNotifications;
+import com.witcode.light.light.backend.MyServerClass;
+import com.witcode.light.light.backend.OnTaskCompletedListener;
+import com.witcode.light.light.domain.Notification;
+import com.witcode.light.light.domain.NotificationsAdapter;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
 
-public class HomeFragment extends Fragment {
-    private android.support.v7.widget.Toolbar myToolbar;
+public class ProfileFragment extends Fragment {
+    private Toolbar myToolbar;
     private RecyclerView recyclerView;
-    private ProgressBar progressBar;
     private Context mContext;
-    private View myView;
+    private ArrayList<Notification> mNotifications;
+    private NotificationsAdapter mAdapter;
+    private View myView, vEndOfFeed;
+    private int mLimit=0;
+    private LinearLayoutManager mLayoutManager;
+    private boolean mIsLoading=false;
+    private OnTaskCompletedListener onCompleteListener;
+    private ProgressBar pbNotifications;
+    private NestedScrollView nsvNotifications;
+    private ProfileFragment mFragment=this;
 
-    public HomeFragment() {
+    public ProfileFragment() {
         // Required empty public constructor
     }
 
@@ -55,7 +65,7 @@ public class HomeFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
-        myView = inflater.inflate(R.layout.fragment_home, container, false);
+        myView = inflater.inflate(R.layout.fragment_profile, container, false);
 
         mContext = getActivity();
         myToolbar = (Toolbar) myView.findViewById(R.id.toolbar);
@@ -80,11 +90,21 @@ public class HomeFragment extends Fragment {
 
             }
         };
+
         mDrawerLayout.setDrawerListener(mDrawerToggle);
 
         mDrawerToggle.syncState();
 
         mDrawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
+
+        //TODO shared preferences to see if notification card has been dismissed, if so, it should not appear
+
+        pbNotifications= (ProgressBar) myView.findViewById(R.id.pb_notifications);
+        recyclerView = (RecyclerView) myView.findViewById(R.id.rv_notifications);
+        vEndOfFeed=myView.findViewById(R.id.ll_end_of_feed);
+        nsvNotifications=(NestedScrollView) myView.findViewById(R.id.nsv_notifications);
+        mLayoutManager = new LinearLayoutManager(getActivity());
+
 
         CircleImageView civ = (CircleImageView) myView.findViewById(R.id.civ_profile);
         Uri uri = Profile.getCurrentProfile().getProfilePictureUri(640, 640);
@@ -102,10 +122,8 @@ public class HomeFragment extends Fragment {
         });
         View fabLighter;
         fabLighter = myView.findViewById(R.id.fab_lighter);
-        /*if (WalkService.IS_SERVICE_RUNNING)
-            fabLighter.setVisibility(View.GONE);
-        else
-            fabLighter.setVisibility(View.VISIBLE);*/
+
+
 
         fabLighter.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -115,4 +133,6 @@ public class HomeFragment extends Fragment {
         });
         return myView;
     }
+
+
 }

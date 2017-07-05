@@ -1,4 +1,4 @@
-package com.witcode.light.light;
+package com.witcode.light.light.fragments;
 
 import android.graphics.Color;
 import android.os.Bundle;
@@ -13,14 +13,17 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
 
+import com.witcode.light.light.R;
+import com.witcode.light.light.activities.MainActivity;
 
-public class TemplateFragment extends Fragment{
+
+public class ActivityFragment extends Fragment{
     private static Toolbar myToolbar;
     private RecyclerView recyclerView;
     private ProgressBar progressBar;
     private View myView;
 
-    public TemplateFragment() {
+    public ActivityFragment() {
         // Required empty public constructor
     }
 

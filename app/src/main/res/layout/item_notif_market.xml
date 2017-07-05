@@ -7,6 +7,7 @@
     android:layout_marginBottom="16dp"
     app:cardCornerRadius="8dp">
 
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -21,7 +22,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
-                android:src="@mipmap/background_luces" />
+                android:src="@mipmap/bateria" />
 
 
         </FrameLayout>
@@ -44,39 +45,38 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginLeft="14dp"
-                    android:layout_marginTop="10dp"
                     android:gravity="center_vertical"
-                    android:text="Desafío Light"
+                    android:text="Batería portátil"
                     android:textColor="#ffffff"
+                    android:layout_marginTop="10dp"
                     android:textSize="20sp"
                     android:textStyle="bold" />
-
                 <TextView
                     android:id="@+id/tv_challenge_subtitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="10dp"
                     android:layout_marginLeft="14dp"
                     android:layout_marginTop="6dp"
+                    android:layout_marginBottom="10dp"
                     android:gravity="center_vertical"
-                    android:text="Esto es un desafío"
+                    android:text="¡hazte con ella!"
                     android:textColor="#ffffff"
-                    android:textSize="16sp" />
+                    android:textSize="16sp"/>
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:gravity="right|center_vertical"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:gravity="right|center_vertical">
 
                 <ImageView
                     android:id="@+id/iv_fav"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginRight="12dp"
-                    android:src="@drawable/ic_star_border" />
+                    android:src="@drawable/ic_star_border"
+                    android:layout_marginRight="12dp"/>
 
             </LinearLayout>
 
