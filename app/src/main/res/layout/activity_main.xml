@@ -14,22 +14,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fitsSystemWindows="true"
-        tools:context="com.witcode.light.light.MainActivity">
+        tools:context="com.witcode.light.light.activities.MainActivity">
 
        <FrameLayout
            android:id="@+id/container"
            android:layout_width="match_parent"
            android:layout_height="match_parent"/>
 
-        <android.support.design.widget.FloatingActionButton
-            android:id="@+id/fab_activity"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:fabSize="normal"
-            android:src="@mipmap/ic_walk"
-            android:layout_gravity="bottom|right"
-            android:layout_marginRight="24dp"
-            android:layout_marginBottom="24dp"
+
             />
     </android.support.design.widget.CoordinatorLayout>
 

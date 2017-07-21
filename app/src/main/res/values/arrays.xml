@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="bus_array">
+        <item>Urbano (azul)</item>
+        <item>Interurbano (verde)</item>
+    </string-array>
+
+    <string-array name="railway_array">
+        <item>Metro</item>
+        <item>Cercanías</item>
+    </string-array>
+
+
+    <string-array name="cercanias_array">
+        <item>Linea 1</item>
+        <item>Linea 2</item>
+        <item>Linea 3</item>
+        <item>Linea 4</item>
+        <item>Linea 5</item>
+        <item>Linea 6</item>
+        <item>Linea 7</item>
+        <item>Linea 8</item>
+        <item>Linea 9</item>
+        <item>Linea 10</item>
+        <item>Linea 11</item>
+        <item>Linea 12</item>
+        <item>Linea R</item>
+        <item>Cercanias C1</item>
+        <item>Cercanias C2</item>
+        <item>Cercanias C3</item>
+        <item>Cercanias C4</item>
+        <item>Cercanias C5</item>
+        <item>Cercanias C6</item>
+        <item>Cercanias C7</item>
+        <item>Cercanias C8</item>
+        <item>Cercanias C9</item>
+        <item>Cercanias C10</item>
+
+
+    </string-array>
+</resources>
