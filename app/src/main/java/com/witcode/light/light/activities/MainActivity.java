@@ -1,13 +1,16 @@
 package com.witcode.light.light.activities;
 
+import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.location.Location;
+import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -20,6 +23,7 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
@@ -34,33 +38,28 @@ import com.afollestad.materialdialogs.MaterialDialog;
 import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
-import com.google.android.gms.location.LocationListener;
 import com.facebook.Profile;
 import com.facebook.login.LoginManager;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.LocationSettingsRequest;
-import com.google.android.gms.location.LocationSettingsResult;
-import com.google.android.gms.location.LocationSettingsStates;
-import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.iid.FirebaseInstanceId;
-import com.google.firebase.iid.FirebaseInstanceIdService;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 import com.witcode.light.light.R;
-import com.witcode.light.light.Services.MyFirebaseInstanceIDService;
-import com.witcode.light.light.Services.WalkService;
+import com.witcode.light.light.Services.ActivityService;
+import com.witcode.light.light.Services.RetryService;
+import com.witcode.light.light.backend.EndActivityTask;
+import com.witcode.light.light.backend.NetworkChangeReceiver;
+import com.witcode.light.light.backend.RetryTask;
 import com.witcode.light.light.backend.UpdateToken;
+import com.witcode.light.light.domain.MapPoint;
 import com.witcode.light.light.domain.MarketItem;
+import com.witcode.light.light.fragments.ActivityFragment;
 import com.witcode.light.light.fragments.AdminFragment;
+import com.witcode.light.light.fragments.EndActivityFragment;
 import com.witcode.light.light.fragments.HomeFragment;
 import com.witcode.light.light.fragments.MarketDetailFragment;
 import com.witcode.light.light.fragments.MarketFragment;
 import com.witcode.light.light.fragments.RankingFragment;
-import com.witcode.light.light.fragments.StartFragment;
 
 import com.witcode.light.light.backend.GetAdminLevel;
 import com.witcode.light.light.backend.GetLights;
@@ -69,52 +68,43 @@ import com.witcode.light.light.backend.OnLocationUpdateListener;
 import com.witcode.light.light.backend.OnTaskCompletedListener;
 import com.witcode.light.light.Services.ServiceBinder;
 import com.witcode.light.light.backend.UpdateLights;
+
+import java.util.ArrayList;
+
 import de.hdodenhof.circleimageview.CircleImageView;
 
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
+        implements NavigationView.OnNavigationItemSelectedListener {
     private DrawerLayout drawer;
     private NavigationView navigationView;
     private FragmentTransaction fragmentTransaction;
     private TextView tvLights;
-    private GoogleApiClient mGoogleApiClient;
-    private Location mLastLocation;
     private int MY_PERMISSIONS_REQUEST_CODE = 1;
-    private OnLocationUpdateListener mCallback = null;
     public final static int HIGH_ACCURACY = 1;
     public final static int REQUEST_CHECK_SETTINGS = 2;
     private Context mContext = this;
     private int seconds, minutes, hours;
-    private FloatingActionButton fabActivity;
     private MaterialDialog mDialog, dialogWalk;
     private static Handler mHandler;
     private double mSpeed, mDistance, mLights;
     private View header;
-    public boolean serviceBound=false;
-    public OnLocationUpdateListener mLocationListener;
-    private WalkService mBoundService = null;
+    public boolean serviceBound = false;
+    private String mCurrentFragment = "";
+    private ServiceBinder mServiceBinder;
+    private ActivityService mActivityService = null;
+    private RetryService mRetryService = null;
     private TextView tvTime, tvDistance, tvSpeed, tvGPS, tvDialogLights;
     private int i;
     private long mTime;
+    private ServiceConnection retryServiceConnection, mActivityServiceConnection;
+
+    public final static int MY_PERMISSIONS_REQUEST_READ_CONTACTS=4532;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        // Create an instance of GoogleAPIClient.
-        if (mGoogleApiClient == null) {
-            mGoogleApiClient = new GoogleApiClient.Builder(this)
-                    .addConnectionCallbacks(this)
-                    .addOnConnectionFailedListener(this)
-                    .addApi(LocationServices.API)
-                    //.addApi(Places.GEO_DATA_API)
-                    .enableAutoManage(this, this)
-                    .build();
-        }
-
-        CheckPermissionAndAsk();
 
 
         drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -131,14 +121,14 @@ public class MainActivity extends AppCompatActivity
                 if (Profile.getCurrentProfile() != null & FirebaseAuth.getInstance().getCurrentUser() != null) {
 
 
-                    new GetLights(mContext,new OnTaskCompletedListener() {
+                    new GetLights(mContext, GetLights.SUMMED_LIGHTS, new OnTaskCompletedListener() {
                         @Override
                         public void OnComplete(String result, int resultCode, int resultType) {
                             if (resultCode == GetLights.SUCCESSFUL) {
                                 header.findViewById(R.id.ll_connected).setVisibility(View.VISIBLE);
                                 header.findViewById(R.id.ll_not_connected).setVisibility(View.GONE);
                                 tvLights.setText(result);
-                            }else if(resultCode == MyServerClass.NOT_CONNECTED){
+                            } else if (resultCode == MyServerClass.NOT_CONNECTED) {
                                 header.findViewById(R.id.ll_connected).setVisibility(View.GONE);
                                 header.findViewById(R.id.ll_not_connected).setVisibility(View.VISIBLE);
                             }
@@ -159,6 +149,7 @@ public class MainActivity extends AppCompatActivity
 
             }
         });
+
         navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
@@ -197,33 +188,19 @@ public class MainActivity extends AppCompatActivity
         new GetAdminLevel(mContext, new OnTaskCompletedListener() {
             @Override
             public void OnComplete(String result, int resultCode, int resultType) {
-                if(resultCode==MyServerClass.SUCCESSFUL && Double.parseDouble(result)>=90){
+                if (resultCode == MyServerClass.SUCCESSFUL && Double.parseDouble(result) >= 90) {
                     navigationView.getMenu().findItem(R.id.nav_admin).setVisible(true);
                 }
             }
         }).execute();
 
 
-        GoToFragment("home");
+        if (getIntent() != null && getIntent().getAction() != null) {
 
-        SetUpLocation();
-        fabActivity = (FloatingActionButton) findViewById(R.id.fab_activity);
-
-        fabActivity.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-
-                ShowRunningActivityDialog();
-            }
-        });
-
-
-        if (getIntent() != null && getIntent().getAction() != null){
-
-            switch (getIntent().getAction()){
+            switch (getIntent().getAction()) {
                 case "too_fast":
-                    StopWalkService();
-                    Snackbar.make(findViewById(R.id.cl_container), "Va demasiado rápido...", Snackbar.LENGTH_SHORT).show();
+                    Log.v("tagg", "intent too_fast");
+                    GotoStartActivityFragment();
                     break;
                 case "start_activity":
                     GoToFragment("start");
@@ -234,19 +211,20 @@ public class MainActivity extends AppCompatActivity
                 case "market":
                     GoToFragment("market");
                     break;
+                case "started_activity":
+                    GotoStartActivityFragment();
+                    Log.v("tagg", "intent_started_activity");
+                    break;
                 default:
                     GoToFragment("home");
                     break;
             }
-
-
+        } else {
+            GoToFragment("start");
         }
 
-        UpdateFabActivity();
 
-        SetUpDialog();
-
-        if(FirebaseInstanceId.getInstance().getToken()!=null){
+        if (FirebaseInstanceId.getInstance().getToken() != null) {
             new UpdateToken(mContext, FirebaseInstanceId.getInstance().getToken(), new OnTaskCompletedListener() {
                 @Override
                 public void OnComplete(String result, int resultCode, int resultType) {
@@ -254,16 +232,8 @@ public class MainActivity extends AppCompatActivity
                 }
             }).execute();
         }
-    }
 
-    @Override
-    public void onBackPressed() {
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
-        if (drawer.isDrawerOpen(GravityCompat.START)) {
-            drawer.closeDrawer(GravityCompat.START);
-        } else {
-            super.onBackPressed();
-        }
+        GotoStartActivityFragment();
     }
 
     public DrawerLayout getDrawerLayout() {
@@ -277,14 +247,14 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_start) {
-            GoToFragment("start");
+            GotoStartActivityFragment();
         } else if (id == R.id.nav_market) {
             GoToFragment("market");
         } else if (id == R.id.nav_ranking) {
             GoToFragment("ranking");
         } else if (id == R.id.nav_admin) {
             GoToFragment("admin");
-        }else if (id == R.id.nav_logout) {
+        } else if (id == R.id.nav_logout) {
 
             LoginManager.getInstance().logOut();
             FirebaseAuth.getInstance().signOut();
@@ -293,61 +263,14 @@ public class MainActivity extends AppCompatActivity
             startActivity(intent);
 
             finish();
-
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
+
+        StartRetryService();
+
         return true;
-    }
-
-    private void SetUpDialog() {
-
-        dialogWalk = new MaterialDialog.Builder(this)
-                .title("Datos de la actividad")
-                .contentColor(Color.parseColor("#ffffff"))
-                .titleColor(Color.parseColor("#ffffff"))
-                .positiveText("Terminar")
-                .negativeText("Pasar a segundo plano")
-                .customView(R.layout.dialog_walk, true)
-                .backgroundColor(getResources().getColor(R.color.PrimaryDark))
-                                /*.negativeText("Pausar")
-                                .onNegative(new MaterialDialog.SingleButtonCallback() {
-                                    @Override
-                                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                                        DialogPauseWalk();
-                                    }
-                                })*/
-                .onNegative(new MaterialDialog.SingleButtonCallback() {
-                    @Override
-                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-
-                    }
-                })
-                .onPositive(new MaterialDialog.SingleButtonCallback() {
-                    @Override
-                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                        dialogWalk.dismiss();
-                        StopWalkService();
-                        mLights = Math.round(mLights);
-                        int l = (int) mLights;
-                        new UpdateLights(mContext,l, new OnTaskCompletedListener() {
-                            @Override
-                            public void OnComplete(String result, int resultCode, int resultType) {
-                                Snackbar.make(findViewById(R.id.cl_container), "Se ha terminado la acción, has ganado " + (int) mLights + " lights", Snackbar.LENGTH_SHORT).show();
-                            }
-                        }).execute();
-                    }
-                })
-                .build();
-        tvTime = (TextView) dialogWalk.findViewById(R.id.tv_dialog_time);
-        tvDistance = (TextView) dialogWalk.findViewById(R.id.tv_dialog_distance);
-        tvSpeed = (TextView) dialogWalk.findViewById(R.id.tv_dialog_speed);
-        tvGPS = (TextView) dialogWalk.findViewById(R.id.tv_dialog_gps_signal);
-        tvDialogLights = (TextView) dialogWalk.findViewById(R.id.tv_dialog_lights);
-
-        dialogWalk.setCanceledOnTouchOutside(false);
-
     }
 
     public void GoToFragment(String fragment, Bundle extras) {
@@ -364,6 +287,7 @@ public class MainActivity extends AppCompatActivity
                 fragmentTransaction.addToBackStack("home");
                 fragmentTransaction.replace(R.id.container, mFragment);
                 fragmentTransaction.commit();
+                mCurrentFragment = "home";
                 break;
             case "ranking":
                 RankingFragment mRankingFragment = new RankingFragment();
@@ -372,20 +296,9 @@ public class MainActivity extends AppCompatActivity
                 fragmentTransaction.addToBackStack("ranking");
                 fragmentTransaction.replace(R.id.container, mRankingFragment);
                 fragmentTransaction.commit();
+                mCurrentFragment = "ranking";
                 break;
-            case "start":
-                if (WalkService.IS_SERVICE_RUNNING) {
-                    Snackbar.make(findViewById(R.id.cl_container), "Termine la actividad actual para comenzar una nueva", Snackbar.LENGTH_SHORT).show();
-                } else {
-                    StartFragment mStartFragment = new StartFragment();
-                    mStartFragment.setArguments(extras);
-                    fragmentTransaction = getSupportFragmentManager().beginTransaction();
-                    fragmentTransaction.addToBackStack("start");
-                    fragmentTransaction.replace(R.id.container, mStartFragment);
-                    fragmentTransaction.commit();
-                }
 
-                break;
             case "market":
                 MarketFragment mMarketFragment = new MarketFragment();
                 mMarketFragment.setArguments(extras);
@@ -393,6 +306,7 @@ public class MainActivity extends AppCompatActivity
                 fragmentTransaction.addToBackStack("market");
                 fragmentTransaction.replace(R.id.container, mMarketFragment);
                 fragmentTransaction.commit();
+                mCurrentFragment = "market";
                 break;
 
             case "admin":
@@ -402,6 +316,7 @@ public class MainActivity extends AppCompatActivity
                 fragmentTransaction.addToBackStack("admin");
                 fragmentTransaction.replace(R.id.container, mAdminFragment);
                 fragmentTransaction.commit();
+                mCurrentFragment = "admin";
                 break;
         }
         drawer.closeDrawer(GravityCompat.START);
@@ -417,324 +332,272 @@ public class MainActivity extends AppCompatActivity
         fragmentTransaction.addToBackStack("market_detail");
         fragmentTransaction.replace(R.id.container, mMarketFragment);
         fragmentTransaction.commit();
+        mCurrentFragment = "market_detail";
+
+    }
+
+    public void GotoStartActivityFragment() {
+
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)) {
+
+                // Show an expanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+
+            } else {
+
+                // No explanation needed, we can request the permission.
+
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        MY_PERMISSIONS_REQUEST_READ_CONTACTS);
+
+                // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
+                // app-defined int constant. The callback method gets the
+                // result of the request.
+            }
+        }else{
+            Log.v("tagg", "gotostartactivityfragment");
+            ActivityFragment mStartFragment = new ActivityFragment();
+            fragmentTransaction = getSupportFragmentManager().beginTransaction();
+            fragmentTransaction.addToBackStack("start");
+            fragmentTransaction.replace(R.id.container, mStartFragment);
+            fragmentTransaction.commitAllowingStateLoss();
+            mCurrentFragment = "activity";
+            mStartFragment.setmActivity(this);
+        }
+
+
+
+    }
+
+    public EndActivityFragment GoToEndActivityFragment(){
+        return GoToEndActivityFragment("...", "...", "...", "...", "...", ActivityService.LINE, ActivityService.CURRENT_ACTIVITY, ActivityService.URBAN, new ArrayList<MapPoint>());
+    }
+    public EndActivityFragment GoToEndActivityFragment(String distance, String time, String speed, String lights, String endText, String line, int activityType, boolean urbanCercanias, ArrayList<MapPoint> userPoints) {
+        EndActivityFragment mFragment = new EndActivityFragment();
+        mFragment.setData(distance, time, speed, lights, endText, line, activityType, urbanCercanias, userPoints);
+        fragmentTransaction = getSupportFragmentManager().beginTransaction();
+        fragmentTransaction.addToBackStack("end_activity");
+        fragmentTransaction.replace(R.id.container, mFragment);
+        fragmentTransaction.commitAllowingStateLoss();
+        mCurrentFragment = "end_activity";
+
+        return mFragment;
+    }
+
+    public void StartRetryService() {
+        Log.v("tagg", "mainactivity trying to start retry service");
+        retryServiceConnection = new ServiceConnection() {
+            public void onServiceConnected(ComponentName className, IBinder service) {
+                RetryService.IS_SERVICE_RUNNING=true;
+                mRetryService = ((RetryService.LocalBinder) service).getService();
+                Log.i("tagg", "retry service_connected");
+            }
+
+            public void onServiceDisconnected(ComponentName className) {
+                mRetryService = null;
+            }
+        };
+
+
+        bindService(new Intent(MainActivity.this,
+                RetryService.class), retryServiceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    public void StopRetryService() {
+        Log.v("tagg", "mainactivity stopping retry service");
+        unbindService(retryServiceConnection);
+        RetryService.IS_SERVICE_RUNNING=false;
+        mRetryService = null;
+    }
+
+    public void StartActivityService(final int activityType, final ServiceBinder binder) {
+        mActivityServiceConnection = new ServiceConnection() {
+            public void onServiceConnected(ComponentName className, IBinder service) {
+
+                mActivityService = ((ActivityService.LocalBinder) service).getService();
+                mActivityService.mActivity = (MainActivity) mContext;
+                mActivityService.setBinder(binder);
+                ActivityService.CURRENT_ACTIVITY=activityType;
+                serviceBound = true;
+                Log.i("ForegroundService", "service_connected");
+                ActivityService.IS_SERVICE_RUNNING=true;
+            }
+
+            public void onServiceDisconnected(ComponentName className) {
+                mActivityService = null;
+            }
+        };
+        bindService(new Intent(MainActivity.this,
+                ActivityService.class), mActivityServiceConnection, Context.BIND_AUTO_CREATE);
+        Log.v("ForegroundService", "service bound");
+    }
+
+    public void setServiceBinder(ServiceBinder binder){
+        if(mActivityService!=null){
+            mActivityService.setBinder(binder);
+        }
+    }
+
+    public void StopActivityService() {
+        if(mActivityService!= null && ActivityService.IS_SERVICE_RUNNING==true){
+            try{
+                unbindService(mActivityServiceConnection);
+                ActivityService.IS_SERVICE_RUNNING=false;
+                Log.v("tagg", "service unbound");
+            }catch (IllegalArgumentException e){
+                e.printStackTrace();
+                Log.v("tagg", "caught unbind exception");
+            }
+        }else{
+            Log.v("tagg", "service was null or cte was not true");
+        }
+
+    }
+
+    public void AddToRetryService(RetryTask task) {
+        if (mRetryService != null) {
+            mRetryService.AddTask(task);
+            Log.v("tagg", "mainactivity retryservice not null");
+        } else {
+            StartRetryService();
+            Log.v("tagg", "mainactivity retryservice is null");
+        }
+    }
+
+
+    @Override
+    public void onBackPressed() {
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        if (drawer.isDrawerOpen(GravityCompat.START)) {
+            drawer.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+
+    @Override
+    protected void onDestroy() {
+        if (ActivityService.IS_SERVICE_RUNNING) {
+            StopActivityService();
+        }
+
+        if(RetryService.IS_SERVICE_RUNNING){
+            StopRetryService();
+        }
+
+        super.onDestroy();
     }
 
     @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        Log.d("location_update", "connected");
-        startLocationUpdates();
-
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
-    }
-
-    public void ShowRunningActivityDialog() {
-        if(dialogWalk!=null){
-            dialogWalk.show();
-            mBoundService.setBinder(new ServiceBinder() {
+    protected void onNewIntent(Intent intent) {
+        Log.v("tagg", "new intent: " + intent);
+        if(intent!=null && intent.getAction()!= null && !mCurrentFragment.equals("activity") && intent.getAction().equals("started_activity")){
+            GotoStartActivityFragment();
+        }else if(intent!=null && intent.getAction()!= null && intent.getAction().equals("action_stop")){
+            final EndActivityFragment mFragment=GoToEndActivityFragment();
+            mActivityService.setBinder(new ServiceBinder() {
                 @Override
-                public void OnUpdate(final String distance, final String speed, final int seconds, final String lights, final String GPS) {
-                    mDistance = Double.parseDouble(distance);
-                    mSpeed = Double.parseDouble(speed);
-                    mLights = Double.parseDouble(lights);
+                public void OnUpdate(double distance, double speed, int seconds, double lights, ArrayList<MapPoint> points) {
+                    mActivityService.setBinder(null);
+                    StopActivityService();
 
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
+                    mFragment.setmDistance(String.valueOf(Math.round(distance * 100.0) / 100.0) + "m");
+                    mFragment.setmSpeed(String.valueOf(Math.round(speed * 100.0) / 100.0) + "km/h");
+                    mFragment.setmLights(String.valueOf(Math.round(lights * 100.0) / 100.0));
 
-                            tvDistance.setText(String.valueOf(Math.round(mDistance * 100.0) / 100.0) + "m");
-                            tvSpeed.setText(String.valueOf(Math.round(mSpeed * 100.0) / 100.0) + "km/h");
+                    int minutes = (seconds) / 60;
+                    int hours = minutes / 60;
 
-                            minutes = (seconds) / 60;
-                            hours = minutes / 60;
-                            if (hours > 0) {
-                                tvTime.setText(hours + "h " + minutes % 60 + "min " + seconds % 60 + "s");
-                            } else if (minutes > 0) {
-                                tvTime.setText(minutes + "min " + seconds % 60 + "s");
-                            } else {
-                                tvTime.setText(seconds + "s");
-                            }
+                    String shours, sminutes, sseconds;
 
-                            tvDialogLights.setText(String.valueOf(Math.round(mLights * 100.0) / 100.0));
-                            tvGPS.setText(GPS);
+                    shours = hours < 10 ? "0" + String.valueOf(hours) : String.valueOf(hours);
+                    sminutes = (minutes % 60) < 10 ? "0" + String.valueOf(minutes % 60) : String.valueOf(minutes % 60);
+                    sseconds = (seconds % 60) < 10 ? "0" + String.valueOf(seconds % 60) : String.valueOf(seconds % 60);
 
+                    mFragment.setmTime(shours + ":" + sminutes + ":" + sseconds);
+                    mFragment.setmUserRoutePoints(points);
+                    mFragment.setmEndText("HAS TERMINADO LA ACTIVIDAD");
 
-                        }
-                    });
+                    mFragment.UpdateUI();
+
+                }
+
+                @Override
+                public void OnGPSUpdate(String GPS) {
+
+                }
+            });
+        }else if(intent.getAction().equals("too_fast")){
+            final EndActivityFragment mFragment=GoToEndActivityFragment();
+            mActivityService.setBinder(new ServiceBinder() {
+                @Override
+                public void OnUpdate(double distance, double speed, int seconds, double lights, ArrayList<MapPoint> points) {
+                    mActivityService.setBinder(null);
+                    StopActivityService();
+
+                    mFragment.setmDistance(String.valueOf(Math.round(distance * 100.0) / 100.0) + "m");
+                    mFragment.setmSpeed(String.valueOf(Math.round(speed * 100.0) / 100.0) + "km/h");
+                    mFragment.setmLights("0");
+
+                    int minutes = (seconds) / 60;
+                    int hours = minutes / 60;
+
+                    String shours, sminutes, sseconds;
+
+                    shours = hours < 10 ? "0" + String.valueOf(hours) : String.valueOf(hours);
+                    sminutes = (minutes % 60) < 10 ? "0" + String.valueOf(minutes % 60) : String.valueOf(minutes % 60);
+                    sseconds = (seconds % 60) < 10 ? "0" + String.valueOf(seconds % 60) : String.valueOf(seconds % 60);
+
+                    mFragment.setmTime(shours + ":" + sminutes + ":" + sseconds);
+                    mFragment.setmUserRoutePoints(points);
+                    mFragment.setmEndText("VAS DEMASIADO RÁPIDO");
+
+                    mFragment.UpdateUI();
+
+                }
+
+                @Override
+                public void OnGPSUpdate(String GPS) {
 
                 }
             });
         }
 
-    }
-
-    protected void onStart() {
-        //mGoogleApiClient.connect();
-        super.onStart();
-    }
-
-    protected void onStop() {
-        mGoogleApiClient.disconnect();
-        super.onStop();
+        super.onNewIntent(intent);
     }
 
     @Override
-    public void onLocationChanged(Location location) {
-        Log.d("location_update", "location2 changed to: " + location.toString());
-        mLastLocation = location;
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_READ_CONTACTS: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-        if(mLocationListener!=null){
-            mLocationListener.OnLocationLoad(location);
-        }
-    }
+                    // permission was granted, yay! Do the
+                    // location-related task you need to do.
 
-    public LocationRequest createLocationRequest(int accuracy) {
-        LocationRequest mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(1000);
-        mLocationRequest.setFastestInterval(5000);
-        mLocationRequest.setPriority(accuracy);
-        return mLocationRequest;
-    }
+                    GotoStartActivityFragment();
+                } else {
 
-
-    public void startLocationUpdates() {
-        try {
-            LocationServices.FusedLocationApi.requestLocationUpdates(
-                    mGoogleApiClient, createLocationRequest(LocationRequest.PRIORITY_HIGH_ACCURACY), this);
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void stopLocationUpdates() {
-        LocationServices.FusedLocationApi.removeLocationUpdates(
-                mGoogleApiClient, this);
-    }
-
-    public void CheckPermissionAndAsk() {
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                requestPermissions(new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION}, MY_PERMISSIONS_REQUEST_CODE);
-            }
-
-            // return;
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-
-        if (requestCode == MY_PERMISSIONS_REQUEST_CODE) {
-            startLocationUpdates();
-
-        } else if (requestCode == REQUEST_CHECK_SETTINGS) {
-            Log.v("tagg", "dialog came back");
-        }
-
-    }
-
-    public void RequestLocation(final OnLocationUpdateListener callback, int accuracy) {
-        try {
-            Log.d("location_update", "location requested");
-            LocationServices.FusedLocationApi.requestLocationUpdates(
-                    mGoogleApiClient, createLocationRequest(accuracy), new LocationListener() {
-                        @Override
-                        public void onLocationChanged(Location location) {
-                            Log.d("location_update", "location changed to: " + location.toString());
-                            if (location.getAccuracy() < 30) {
-                                callback.OnLocationLoad(location);
-                            }
-
-                        }
-                    });
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    public void RequestLocationOnce(final float accuracy, int timeout, final OnLocationUpdateListener callback) {
-
-        new CountDownTimer(timeout, 1000) {
-
-            public void onTick(long millisUntilFinished) {
-                if(mLastLocation!=null && mLastLocation.getAccuracy()<accuracy){
-                    callback.OnLocationLoad(mLastLocation);
-                    this.cancel();
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
                 }
+                return;
             }
 
-            public void onFinish() {
-                callback.OnLocationTimeOut(mLastLocation);
-            }
-        }.start();
-
-
-    }
-
-    public void StartWalkService(int activityType) {
-        Intent service = new Intent(MainActivity.this, WalkService.class);
-        if (!WalkService.IS_SERVICE_RUNNING) {
-            service.setAction("start_foreground");
-            WalkService.IS_SERVICE_RUNNING = true;
-            WalkService.CURRENT_ACTIVITY = activityType;
-
-            startService(service);
-            UpdateFabActivity();
-
-            Log.i("ForegroundService", "Service Started");
-
-            doBindService();
+            // other 'case' lines to check for other
+            // permissions this app might request
         }
     }
-
-    public void StopWalkService() {
-        if(mBoundService!=null){
-            mBoundService.KillService();
-            WalkService.IS_SERVICE_RUNNING = false;
-            UpdateFabActivity();
-            Log.v("mytag", "sevice stopped good");
-        }else{
-
-            Intent service = new Intent(MainActivity.this, WalkService.class);
-            Log.v("mytag", "bound service null");
-            if (WalkService.IS_SERVICE_RUNNING) {
-
-                Intent iStopPress = new Intent(this, WalkService.class);
-                iStopPress.setAction("action_kill");
-                startService(iStopPress);
-                WalkService.IS_SERVICE_RUNNING=false;
-                Log.v("mytag", "trying to stop service");
-            }
-        }
-
-
-    }
-
-
-
-    private ServiceConnection mConnection = new ServiceConnection() {
-        public void onServiceConnected(ComponentName className, IBinder service) {
-
-            mBoundService = ((WalkService.LocalBinder) service).getService();
-            mBoundService.mActivity = (MainActivity) mContext;
-            ShowRunningActivityDialog();
-            serviceBound=true;
-            Log.i("ForegroundService", "service_connected");
-        }
-
-        public void onServiceDisconnected(ComponentName className) {
-            // This is called when the connection with the service has been
-            // unexpectedly disconnected -- that is, its process crashed.
-            // Because it is running in our same process, we should never
-            // see this happen.
-            mBoundService = null;
-        }
-    };
-
-    public void doBindService() {
-        // Establish a connection with the service.  We use an explicit
-        // class name because we want a specific service implementation that
-        // we know will be running in our own process (and thus won't be
-        // supporting component replacement by other applications).
-        bindService(new Intent(MainActivity.this,
-                WalkService.class), mConnection, Context.BIND_AUTO_CREATE);
-        Log.v("ForegroundService", "service bound");
-
-    }
-
-    public void doUnBindService() {
-        // Establish a connection with the service.  We use an explicit
-        // class name because we want a specific service implementation that
-        // we know will be running in our own process (and thus won't be
-        // supporting component replacement by other applications).
-
-
-        try{
-            unbindService(mConnection);
-        } catch (IllegalArgumentException e){
-            Log.v("mytag","Unbinding didn't work. little surprise");
-        }
-        Log.v("ForegroundService", "service unbound");
-
-    }
-
-    public void SetUpLocation() {
-
-        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
-                .addLocationRequest(createLocationRequest(LocationRequest.PRIORITY_HIGH_ACCURACY));
-
-        PendingResult<LocationSettingsResult> result =
-                LocationServices.SettingsApi.checkLocationSettings(mGoogleApiClient,
-                        builder.build());
-
-        result.setResultCallback(new ResultCallback<LocationSettingsResult>() {
-            @Override
-            public void onResult(LocationSettingsResult result) {
-                final Status status = result.getStatus();
-                final LocationSettingsStates states = result.getLocationSettingsStates();
-                Log.v("tagg", "states: " + states);
-                switch (status.getStatusCode()) {
-                    case LocationSettingsStatusCodes.SUCCESS:
-                        // All location settings are satisfied. The client can
-                        // initialize location requests here.
-                        Log.v("tagg", "settings ok");
-                        break;
-                    case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-                        // Location settings are not satisfied, but this can be fixed
-                        // by showing the user a dialog.
-                        try {
-                            // Show the dialog by calling startResolutionForResult(),
-                            // and check the result in onActivityResult().
-                            Log.v("tagg", "dialog started");
-                            status.startResolutionForResult(
-                                    (MainActivity) mContext,
-                                    REQUEST_CHECK_SETTINGS);
-                        } catch (IntentSender.SendIntentException e) {
-                            // Ignore the error.
-                            Log.v("tagg", "error?: " + e);
-                        }
-                        break;
-                    case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                        // Location settings are not satisfied. However, we have no way
-                        // to fix the settings so we won't show the dialog.
-                        Log.v("tagg", "cannot do anything");
-                        break;
-                }
-            }
-        });
-    }
-
-    public void UpdateFabActivity() {
-        if (WalkService.IS_SERVICE_RUNNING) {
-
-            if (WalkService.CURRENT_ACTIVITY == StartFragment.ACTIVITY_WALK)
-                fabActivity.setImageResource(R.mipmap.ic_fab_walk);
-            else if (WalkService.CURRENT_ACTIVITY == StartFragment.ACTIVITY_BIKE)
-                fabActivity.setImageResource(R.mipmap.ic_fab_bike);
-
-            fabActivity.setVisibility(View.VISIBLE);
-            if (mBoundService != null) {
-                mBoundService.mActivity = (MainActivity) mContext;
-            } else {
-                doBindService();
-            }
-
-        } else {
-            fabActivity.setVisibility(View.GONE);
-            mBoundService = null;
-        }
-    }
-
 }

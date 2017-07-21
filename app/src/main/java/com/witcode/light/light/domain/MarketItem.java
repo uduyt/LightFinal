@@ -7,6 +7,7 @@ package com.witcode.light.light.domain;
 public class MarketItem {
     private String Id;
     private String Name;
+    private String NameDescription;
     private String Lights;
     private String Discount;
     private String Info;
@@ -58,5 +59,13 @@ public class MarketItem {
 
     public void setInfo(String info) {
         Info = info;
+    }
+
+    public String getNameDescription() {
+        return NameDescription;
+    }
+
+    public void setNameDescription(String nameDescription) {
+        NameDescription = nameDescription;
     }
 }

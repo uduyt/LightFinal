@@ -259,7 +259,7 @@ public class HomeFragment extends Fragment {
         fabLighter.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                ((MainActivity) getActivity()).GoToFragment("start");
+                ((MainActivity) getActivity()).GotoStartActivityFragment();
             }
         });
         return myView;

@@ -28,7 +28,6 @@ import com.witcode.light.light.backend.OnTaskCompletedListener;
 import com.witcode.light.light.backend.SendPromotion;
 import com.witcode.light.light.backend.UpdateLights;
 
-
 public class MarketDetailFragment extends Fragment{
     private static Toolbar myToolbar;
     private RecyclerView recyclerView;
@@ -63,7 +62,7 @@ public class MarketDetailFragment extends Fragment{
         myToolbar.setNavigationOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                ((MainActivity) getActivity()).onBackPressed();
+                getActivity().onBackPressed();
             }
         });
 
@@ -71,7 +70,7 @@ public class MarketDetailFragment extends Fragment{
             @Override
             public void onClick(View view) {
                 Log.d("tagg", "clicked");
-                new GetLights(getActivity(), new OnTaskCompletedListener() {
+                new GetLights(getActivity(), GetLights.SUMMED_LIGHTS, new OnTaskCompletedListener() {
                     @Override
                     public void OnComplete(String result, int resultCode, int resultType) {
                         Log.d("tagg", "get_lights with result: " + result);
@@ -99,7 +98,7 @@ public class MarketDetailFragment extends Fragment{
                                                     Log.d("tagg", "promotion sent");
                                                     if(resultCode==SendPromotion.SUCCESSFUL){
                                                         Log.d("tagg", "promotion sent successful");
-                                                        new UpdateLights(getActivity(), -Integer.parseInt(mMarketItem.getLights()), new OnTaskCompletedListener() {
+                                                        new UpdateLights(getActivity(), -Integer.parseInt(mMarketItem.getLights()),UpdateLights.REMOVE, new OnTaskCompletedListener() {
                                                             @Override
                                                             public void OnComplete(String result, int resultCode, int resultType) {
                                                                 if(resultCode==UpdateLights.SUCCESSFUL){
@@ -122,21 +121,24 @@ public class MarketDetailFragment extends Fragment{
                         }
                     }
                 }).execute();
-
             }
         });
 
         TextView tvName= (TextView) myView.findViewById(R.id.tv_market_detail_name);
-        TextView tvDiscount= (TextView) myView.findViewById(R.id.tv_market_detail_discount);
-        TextView tvPrice= (TextView) myView.findViewById(R.id.tv_market_detail_price);
+        TextView tvNameDetail= (TextView) myView.findViewById(R.id.tv_market_detail_name_desc);
+        TextView tvDescription= (TextView) myView.findViewById(R.id.tv_market_detail_description);
+        TextView tvDiscount= (TextView) myView.findViewById(R.id.tv_market_detail_discounts);
+        TextView tvPrice= (TextView) myView.findViewById(R.id.tv_market_detail_lights);
         ivPhoto = (ImageView) myView.findViewById(R.id.iv_market_photo);
         ivDiscount = (ImageView) myView.findViewById(R.id.iv_market_discount);
 
         tvName.setText(mMarketItem.getName());
+        tvNameDetail.setText(mMarketItem.getNameDescription());
         tvDiscount.setText(mMarketItem.getDiscount());
         tvPrice.setText(mMarketItem.getLights());
-        Picasso.with(getActivity()).load("http://sustainabilight.com/fotos/market_photo_" + mMarketItem.getId() + ".jpg").into(ivPhoto);
-        Picasso.with(getActivity()).load("http://sustainabilight.com/fotos/market_discount_" + mMarketItem.getId() + ".png").into(ivDiscount);
+        tvDescription.setText(mMarketItem.getInfo());
+        Picasso.with(getActivity()).load("http://sustainabilight.com/fotos/market/market_photo_" + mMarketItem.getId() + ".jpg").into(ivPhoto);
+        Picasso.with(getActivity()).load("http://sustainabilight.com/fotos/market/market_discounttt.png").into(ivDiscount);
 
         return myView;
     }

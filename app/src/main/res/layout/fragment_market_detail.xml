@@ -6,6 +6,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/fab_buy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|right"
+        android:layout_margin="24dp"
+        android:src="@drawable/ic_shop"
+        app:backgroundTint="@color/PrimaryDark"
+        app:elevation="8dp"
+        app:fabSize="normal" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -20,103 +31,178 @@
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?android:attr/actionBarSize"
-                app:theme="@style/ToolBarStyle"
-                app:elevation="5dp" />
+                app:elevation="5dp"
+                app:theme="@style/ToolBarStyle" />
 
         </android.support.design.widget.AppBarLayout>
 
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="180dp">
 
-            <ImageView
-                android:id="@+id/iv_market_photo"
+        <android.support.v4.widget.NestedScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:scaleType="centerCrop" />
+                android:orientation="vertical">
 
-            <ImageView
-                android:id="@+id/iv_market_discount"
-                android:layout_width="110dp"
-                android:layout_height="110dp"
-                android:layout_gravity="top|right"
-                android:layout_margin="0dp"
-                android:scaleType="centerCrop"
-                android:src="@mipmap/dto_bateria" />
-        </FrameLayout>
 
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="60dp">
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="180dp">
 
-            <ImageView
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:layout_gravity="center_vertical"
-                android:layout_marginLeft="20dp"
-                android:src="@drawable/ic_market_name"
-                android:tint="@color/PrimaryVeryDark" />
+                    <ImageView
+                        android:id="@+id/iv_market_photo"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop" />
 
-            <TextView
-                android:id="@+id/tv_market_detail_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:layout_marginLeft="70dp"
-                android:text="Batería portatil" />
-        </FrameLayout>
+                    <ImageView
+                        android:id="@+id/iv_market_discount"
+                        android:layout_width="110dp"
+                        android:layout_height="110dp"
+                        android:layout_gravity="top|right"
+                        android:layout_margin="0dp"
+                        android:scaleType="centerCrop"
+                        android:src="@mipmap/dto_bateria" />
+                </FrameLayout>
 
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="60dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingBottom="8dp"
+                    android:paddingLeft="30dp"
+                    android:paddingTop="8dp">
 
-            <ImageView
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_gravity="center_vertical"
-                android:layout_marginLeft="16dp"
-                android:src="@mipmap/light"
-                android:tint="@color/PrimaryVeryDark" />
 
-            <TextView
-                android:id="@+id/tv_market_detail_price"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:layout_marginLeft="70dp"
-                android:text="30" />
-        </FrameLayout>
+                    <TextView
+                        android:id="@+id/tv_market_detail_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="0dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_weight="1"
+                        android:gravity="bottom"
+                        android:text="Hello world_"
+                        android:textColor="@color/Black" />
 
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="60dp">
+                    <TextView
+                        android:id="@+id/tv_market_detail_name_desc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="0dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginTop="4dp"
+                        android:layout_weight="1"
+                        android:text="Ser sostenible nunca moló tanto" />
+                </LinearLayout>
 
-            <ImageView
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:layout_gravity="center_vertical"
-                android:layout_marginLeft="20dp"
-                android:src="@drawable/ic_price"
-                android:tint="@color/PrimaryVeryDark" />
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginLeft="14dp"
+                    android:layout_marginRight="14dp"
+                    android:background="#33000000" />
 
-            <TextView
-                android:id="@+id/tv_market_detail_discount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:layout_marginLeft="70dp"
-                android:text="30% Dto." />
-        </FrameLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingBottom="5dp"
+                    android:paddingLeft="30dp"
+                    android:paddingTop="5dp">
+
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="0dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_weight="1"
+                        android:gravity="bottom"
+                        android:text="Lights necesarios"
+                        android:textColor="@color/Black" />
+
+                    <TextView
+                        android:id="@+id/tv_market_detail_lights"
+                        android:layout_width="wrap_content"
+                        android:layout_height="0dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginTop="4dp"
+                        android:layout_weight="1"
+                        android:text="60" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginLeft="14dp"
+                    android:layout_marginRight="14dp"
+                    android:background="#33000000" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingBottom="5dp"
+                    android:paddingLeft="30dp"
+                    android:paddingTop="5dp">
+
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="0dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_weight="1"
+                        android:gravity="bottom"
+                        android:text="Recompensa ofrecida"
+                        android:textColor="@color/Black" />
+
+                    <TextView
+                        android:id="@+id/tv_market_detail_discounts"
+                        android:layout_width="wrap_content"
+                        android:layout_height="0dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginTop="4dp"
+                        android:layout_weight="1"
+                        android:text="60% dto." />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginLeft="14dp"
+                    android:layout_marginRight="14dp"
+                    android:background="#33000000" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="90dp"
+                    android:orientation="vertical"
+                    android:paddingBottom="5dp"
+                    android:paddingLeft="30dp"
+                    android:paddingTop="5dp">
+
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:gravity="bottom"
+                        android:text="Descripción"
+                        android:textColor="@color/Black" />
+
+                    <TextView
+                        android:id="@+id/tv_market_detail_description"
+                        android:layout_width="wrap_content"
+                        android:layout_height="0dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginTop="4dp"
+                        android:layout_weight="1"
+                        android:text="¡Light ya está aquí! tras largos meses de trabajo con sus días alegres y sus días de lluvia, con sus carreras, salvando la situación en el último momento, (eh, pero que esto de improvisar hay que tenerlo muy ensayado), con tantos obstáculos y con el apoyo de tantos.. ¡despegamos! beEco, beRewarded, beLight  :)" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </android.support.v4.widget.NestedScrollView>
+
     </LinearLayout>
-
-    <android.support.design.widget.FloatingActionButton
-        android:id="@+id/fab_buy"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|right"
-        android:layout_margin="24dp"
-        app:backgroundTint="@color/PrimaryDark"
-        android:src="@drawable/ic_shop"
-        app:elevation="8dp"
-        app:fabSize="normal" />
 </android.support.design.widget.CoordinatorLayout>

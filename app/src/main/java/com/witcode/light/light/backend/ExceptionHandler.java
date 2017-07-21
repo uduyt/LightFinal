@@ -11,12 +11,17 @@ public class ExceptionHandler extends MyServerClass implements OnTaskCompletedLi
     private String mResult;
     private int mResultCode, mResultType;
     public static final int SUCCESSFUL=1;
+    private String Id;
 
     public ExceptionHandler(Context context, String result) {
         super(context,false);
         mResult=result;
 
-        SetUp();
+
+        if(Profile.getCurrentProfile()!=null && Profile.getCurrentProfile().getId()!=null){
+            Id=Profile.getCurrentProfile().getId();
+            SetUp();
+        }
     }
 
     private void SetUp(){
@@ -25,7 +30,7 @@ public class ExceptionHandler extends MyServerClass implements OnTaskCompletedLi
                 "http://www.sustainabilight.com/functions/handle_exception.php?";
 
         Uri builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
-                .appendQueryParameter("facebook_id", Profile.getCurrentProfile().getId())
+                .appendQueryParameter("facebook_id",Id)
                 .appendQueryParameter("exception", mResult)
                 .build();
 

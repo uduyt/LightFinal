@@ -5,10 +5,10 @@ import android.net.Uri;
 
 import com.facebook.Profile;
 
-public class UpdateLights extends MyServerClass implements OnTaskCompletedListener {
+public class AddActivityHistory extends MyServerClass implements OnTaskCompletedListener {
 
     private OnTaskCompletedListener mCallback;
-    private int lights;
+    private String lights, speed, time, distance;
     private String actionType;
 
     public final static String WALK="walk";
@@ -17,15 +17,16 @@ public class UpdateLights extends MyServerClass implements OnTaskCompletedListen
     public final static String BUS="bus";
     public final static String RECYCLE="recycle";
     public final static String CAR_SHARE="car_share";
-    public final static String CHALLENGE="challenge";
-    public final static String REMOVE="remove";
     public final static String OTHER="other";
 
-    public UpdateLights(Context context, int l, String actionType, OnTaskCompletedListener listener) {
+    public AddActivityHistory(Context context, String l, String speed, String time, String distance, String actionType, OnTaskCompletedListener listener) {
         super(context);
         mCallback=listener;
         lights=l;
         this.actionType=actionType;
+        this.speed=speed;
+        this.time=time;
+        this.distance=distance;
 
         SetUp();
     }
@@ -33,11 +34,14 @@ public class UpdateLights extends MyServerClass implements OnTaskCompletedListen
     private void SetUp(){
 
         final String REQUEST_BASE_URL =
-                "http://www.sustainabilight.com/functions/update_lights.php?";
+                "http://www.sustainabilight.com/functions/add_activity_history.php?";
 
         Uri builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
                 .appendQueryParameter("facebook_id", Profile.getCurrentProfile().getId())
                 .appendQueryParameter("lights",String.valueOf(lights))
+                .appendQueryParameter("speed",String.valueOf(speed))
+                .appendQueryParameter("time",String.valueOf(time))
+                .appendQueryParameter("distance",String.valueOf(distance))
                 .appendQueryParameter("action_type",actionType)
                 .build();
 

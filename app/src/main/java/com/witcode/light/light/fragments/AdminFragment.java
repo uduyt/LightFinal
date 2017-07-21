@@ -92,7 +92,6 @@ public class AdminFragment extends Fragment{
                         .onNegative(new MaterialDialog.SingleButtonCallback() {
                             @Override
                             public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                                ((MainActivity) getActivity()).mLocationListener=null;
                                 mContainerDialog.dismiss();
                             }
                         })
@@ -116,18 +115,7 @@ public class AdminFragment extends Fragment{
                             }
                         }).build();
 
-                ((MainActivity) getActivity()).mLocationListener=new OnLocationUpdateListener() {
-                    @Override
-                    public void OnLocationLoad(Location location) {
-                        mLocation=location;
-                        mContainerDialog.setContent("precisión: " + location.getAccuracy());
-                    }
-
-                    @Override
-                    public void OnLocationTimeOut(@Nullable Location location) {
-
-                    }
-                };
+                //todo
 
                 mContainerDialog.setCanceledOnTouchOutside(false);
                 mContainerDialog.show();

@@ -99,6 +99,7 @@ public class MarketFragment extends Fragment {
                             marketItem = new MarketItem();
                             marketItem.setId(jsonMarket.getString("id"));
                             marketItem.setName(jsonMarket.getString("name"));
+                            marketItem.setNameDescription(jsonMarket.getString("name_description"));
                             marketItem.setInfo(jsonMarket.getString("info"));
                             marketItem.setLights(jsonMarket.getString("lights"));
                             marketItem.setDiscount(jsonMarket.getString("discount"));
@@ -111,8 +112,6 @@ public class MarketFragment extends Fragment {
                         recyclerView.setLayoutManager(mLayoutManager);
                         recyclerView.setItemAnimator(new DefaultItemAnimator());
                         recyclerView.setAdapter(mAdapter);
-
-
                         mAdapter.notifyDataSetChanged();
                     } catch (JSONException e) {
                         e.printStackTrace();

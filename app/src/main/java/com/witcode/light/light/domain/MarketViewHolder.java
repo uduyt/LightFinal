@@ -11,7 +11,7 @@ import com.witcode.light.light.activities.MainActivity;
 import com.witcode.light.light.R;
 
 public class MarketViewHolder extends RecyclerView.ViewHolder {
-    private TextView tvName;
+    private TextView tvName, tvLights, tvDiscount;
     private ImageView ivPhoto, ivDiscount;
     private View mItemView;
     private Context mContext;
@@ -21,14 +21,18 @@ public class MarketViewHolder extends RecyclerView.ViewHolder {
         mItemView = itemView;
         mContext = context;
         tvName = (TextView) itemView.findViewById(R.id.tv_market_name);
+        tvLights = (TextView) itemView.findViewById(R.id.tv_lights);
+        tvDiscount = (TextView) itemView.findViewById(R.id.tv_discount);
         ivPhoto = (ImageView) itemView.findViewById(R.id.iv_market_photo);
         ivDiscount = (ImageView) itemView.findViewById(R.id.iv_market_discount);
     }
 
     public void bindData(final int pos, final MarketItem market) {
         tvName.setText(market.getName());
-        Picasso.with(mContext).load("http://sustainabilight.com/fotos/market_photo_" + market.getId() + ".jpg").into(ivPhoto);
-        Picasso.with(mContext).load("http://sustainabilight.com/fotos/market_discount_" + market.getId() + ".png").into(ivDiscount);
+        tvLights.setText(market.getLights());
+        tvDiscount.setText(market.getDiscount());
+        Picasso.with(mContext).load("http://sustainabilight.com/fotos/market/market_photo_" + market.getId() + ".jpg").into(ivPhoto);
+        Picasso.with(mContext).load("http://sustainabilight.com/fotos/market/market_discount.png").into(ivDiscount);
         mItemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {

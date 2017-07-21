@@ -9,13 +9,18 @@ public class UpdateToken extends MyServerClass implements OnTaskCompletedListene
 
     private OnTaskCompletedListener mCallback;
     private String mToken;
+    private String Id;
 
     public UpdateToken(Context context, String token, OnTaskCompletedListener listener) {
         super(context);
         mCallback=listener;
         mToken=token;
 
-        SetUp();
+        if(Profile.getCurrentProfile()!=null && Profile.getCurrentProfile().getId()!=null){
+            Id=Profile.getCurrentProfile().getId();
+            SetUp();
+        }
+
     }
 
     private void SetUp(){
@@ -24,7 +29,7 @@ public class UpdateToken extends MyServerClass implements OnTaskCompletedListene
                 "http://www.sustainabilight.com/functions/update_token.php?";
 
         Uri builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
-                .appendQueryParameter("facebook_id", Profile.getCurrentProfile().getId())
+                .appendQueryParameter("facebook_id", Id)
                 .appendQueryParameter("token",mToken)
 
                 .build();

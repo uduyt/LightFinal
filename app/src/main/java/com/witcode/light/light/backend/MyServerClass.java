@@ -13,7 +13,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments> {
+public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments> implements RetryTask {
 
     private HttpURLConnection urlConnection;
     private Uri mUri;
@@ -22,6 +22,7 @@ public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments>
     private ExceptionHandler mExceptionHandler;
     private boolean mSendError = true;
     private Context mContext;
+    private boolean successful=false;
 
     public static final int NO_INPUT_STREAM_EXCEPTION = 1;
     public static final int IOEXCEPTION = 2;
@@ -127,7 +128,11 @@ public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments>
             if (mSendError)
                 new ExceptionHandler(mContext, result.getResult()).execute();
         }
+        if(mListener!=null)
         mListener.OnComplete(result.getResult(), result.getResultCode(), result.getResultType());
+        if(result.getResultCode()!=NOT_CONNECTED){
+            successful=true;
+        }
     }
 
     public static boolean isConnected(Context context) {
@@ -151,6 +156,16 @@ public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments>
         return false;
 
 
+    }
+
+    @Override
+    public boolean isSuccessful() {
+        return successful;
+    }
+
+    @Override
+    public void runTask() {
+        this.execute();
     }
 }
 

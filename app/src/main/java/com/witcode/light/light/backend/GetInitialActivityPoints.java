@@ -2,32 +2,32 @@ package com.witcode.light.light.backend;
 
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
 import com.facebook.Profile;
+import com.witcode.light.light.domain.MapPoint;
 
-public class GetLights extends MyServerClass implements OnTaskCompletedListener {
+import java.util.ArrayList;
 
-    private OnTaskCompletedListener mCallback;
-    private String type;
+public class GetInitialActivityPoints extends MyServerClass implements OnTaskCompletedListener {
 
-    public final static String TOTAL_LIGHTS="total_lights";
-    public final static String SUMMED_LIGHTS="summed_lights";
+    private OnInitialPointsCompleteListener mCallback;
+    private ArrayList<MapPoint> mPoints;
 
-    public GetLights(Context context, String type, OnTaskCompletedListener listener) {
+    public GetInitialActivityPoints(Context context, OnInitialPointsCompleteListener listener) {
         super(context);
         mCallback = listener;
-        this.type=type;
+        mPoints=new ArrayList<>();
         SetUp();
     }
 
     private void SetUp() {
 
         final String REQUEST_BASE_URL =
-                "http://www.sustainabilight.com/functions/get_lights.php?";
+                "http://www.sustainabilight.com/functions/get_initial_activity_points.php?";
 
         Uri builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
                 .appendQueryParameter("facebook_id", Profile.getCurrentProfile().getId())
-                .appendQueryParameter("type", type)
                 .build();
 
 
@@ -43,18 +43,15 @@ public class GetLights extends MyServerClass implements OnTaskCompletedListener 
                 //maybe it doesnt matter
             }
 
-            //Send exception to server
-
 
             //Send listener back
-            mCallback.OnComplete(result, resultCode, resultType);
+            mCallback.OnComplete(mPoints);
 
         } else {
-            mCallback.OnComplete(result, SUCCESSFUL, SUCCESSFUL);
+            mCallback.OnError(result,resultCode,resultType);
         }
 
     }
 
 }
-
 

@@ -28,8 +28,29 @@
                 android:layout_height="130dp"
                 android:layout_gravity="top|right"
                 android:layout_margin="0dp"
-                android:scaleType="centerCrop"
-                android:src="@mipmap/dto_bateria"/>
+                android:scaleType="centerCrop"/>
+
+            <TextView
+                android:id="@+id/tv_lights"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|right"
+                android:text="100"
+                android:textColor="@color/white"
+                android:shadowColor="@color/Black"
+                android:textSize="30sp"
+                android:layout_marginRight="55dp"
+                android:layout_marginTop="35dp"/>
+            <TextView
+                android:id="@+id/tv_discount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|right"
+                android:text="60%dto"
+                android:textColor="@color/white"
+                android:textSize="22sp"
+                android:layout_marginRight="27dp"
+                android:layout_marginTop="65dp"/>
         </FrameLayout>
 
 
