@@ -24,7 +24,6 @@
         <meta-data
             android:name="com.facebook.sdk.ApplicationId"
             android:value="@string/facebook_app_id" />
-
         <activity
             android:name=".activities.MainActivity"
             android:label="@string/app_name"
@@ -72,6 +71,10 @@
         </receiver>
 
 
+        <meta-data
+            android:name="io.fabric.ApiKey"
+            android:value="2d15a12ebe5c9ef2839897e8f0e1a0335076358d" />
     </application>
 
+    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>

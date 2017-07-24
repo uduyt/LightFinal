@@ -183,13 +183,21 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-
         //If admin then show new tab
         new GetAdminLevel(mContext, new OnTaskCompletedListener() {
             @Override
             public void OnComplete(String result, int resultCode, int resultType) {
-                if (resultCode == MyServerClass.SUCCESSFUL && Double.parseDouble(result) >= 90) {
-                    navigationView.getMenu().findItem(R.id.nav_admin).setVisible(true);
+
+                if (resultCode == MyServerClass.SUCCESSFUL && result!=null && !result.isEmpty()){
+                    try {
+                        double d=Double.parseDouble(result);
+                        if(d>90){
+                            navigationView.getMenu().findItem(R.id.nav_admin).setVisible(true);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+
+                    }
                 }
             }
         }).execute();

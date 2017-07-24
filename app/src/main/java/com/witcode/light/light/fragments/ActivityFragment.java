@@ -314,7 +314,7 @@ public class ActivityFragment extends Fragment {
 
                 mTime = shours + ":" + sminutes + ":" + sseconds;
 
-                if(seconds%3==1){
+                if (seconds % 3 == 1) {
                     mUserRoutePoints = userPoints;
                     UpdateUserRoute();
                 }
@@ -532,7 +532,12 @@ public class ActivityFragment extends Fragment {
                         } else {
                             ActivityService.CERCANIAS = true;
                             URBAN_CERCANIAS = true;
-                            LINE = LINE.substring(11);
+
+                            try {
+                                LINE = LINE.substring(11);
+                            } catch (IndexOutOfBoundsException e) {
+                                e.printStackTrace();
+                            }
                             ActivityService.LINE = LINE;
                             Log.v("tagg", "line: " + LINE);
                         }
@@ -612,7 +617,7 @@ public class ActivityFragment extends Fragment {
             if (type == ACTIVITY_BUS || type == ACTIVITY_RAILROAD) {
 
 
-                listener=new OnPointsCompleteListener() {
+                listener = new OnPointsCompleteListener() {
                     @Override
                     public void OnComplete(ArrayList<ArrayList<MapPoint>> points) {
 
@@ -624,7 +629,8 @@ public class ActivityFragment extends Fragment {
                         UpdateInitialTransportRoute();
 
                         try {
-                            getActivity().unregisterReceiver(mrv);
+                            if (getActivity() != null && mrv != null)
+                                getActivity().unregisterReceiver(mrv);
 
                         } catch (IllegalArgumentException e) {
                             e.printStackTrace();
@@ -765,9 +771,9 @@ public class ActivityFragment extends Fragment {
 
                     try {
                         Iterator<MapPoint> iter = mUserRoutePoints.iterator();
-                        lastPoint=null;
-                        mapPoint=null;
-                        polyline=null;
+                        lastPoint = null;
+                        mapPoint = null;
+                        polyline = null;
 
                         while (iter.hasNext()) {
                             mapPoint = iter.next();
