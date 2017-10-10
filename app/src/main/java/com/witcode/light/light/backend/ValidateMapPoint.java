@@ -3,6 +3,7 @@ package com.witcode.light.light.backend;
 import android.content.Context;
 import android.location.Location;
 import android.net.Uri;
+import android.util.Log;
 
 import com.witcode.light.light.Utils;
 import com.witcode.light.light.domain.EastNorth;
@@ -40,6 +41,7 @@ public class ValidateMapPoint extends MyServerClass implements OnTaskCompletedLi
 
     private void SetUp() {
 
+        Log.v("mytag", "ValidateMapPoint: Running task with mapPoint: " + mapPoint.toString());
         Uri builtUri;
         final String REQUEST_BASE_URL;
         EastNorth eastNorth;
@@ -47,36 +49,49 @@ public class ValidateMapPoint extends MyServerClass implements OnTaskCompletedLi
         switch (activityType) {
             case ActivityFragment.ACTIVITY_BUS:
 
-                if (urban) {
+                if(ActivityFragment.currentCity.getId()==1) {
+                    //Madrid
+
+                    if (urban) {
+                        REQUEST_BASE_URL =
+                                "http://www.sustainabilight.com/functions/validate_urban_bus_map_point.php?";
+
+                        eastNorth = Utils.Deg2UTM(mapPoint.getLatLng().latitude, mapPoint.getLatLng().longitude);
+
+                        Easting = eastNorth.getEasting();
+                        Northing = eastNorth.getNorthing();
+
+                        builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
+                                .appendQueryParameter("line", mLine)
+                                .appendQueryParameter("easting", String.valueOf(Easting))
+                                .appendQueryParameter("northing", String.valueOf(Northing))
+                                .build();
+                    } else {
+                        REQUEST_BASE_URL =
+                                "http://www.sustainabilight.com/functions/validate_interurban_bus_map_point.php?";
+
+                        eastNorth = Utils.Deg2UTM(mapPoint.getLatLng().latitude, mapPoint.getLatLng().longitude);
+
+                        Easting = eastNorth.getEasting();
+                        Northing = eastNorth.getNorthing();
+
+                        builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
+                                .appendQueryParameter("line", mLine)
+                                .appendQueryParameter("easting", String.valueOf(Easting))
+                                .appendQueryParameter("northing", String.valueOf(Northing))
+                                .build();
+                    }
+                }else{
+                    //Gran Canaria
                     REQUEST_BASE_URL =
-                            "http://www.sustainabilight.com/functions/validate_urban_bus_map_point.php?";
-
-                    eastNorth = Utils.Deg2UTM(mapPoint.getLatLng().latitude,mapPoint.getLatLng().longitude);
-
-                    Easting = eastNorth.getEasting();
-                    Northing = eastNorth.getNorthing();
+                            "http://www.sustainabilight.com/functions/validate_bus_map_point_canarias.php?";
 
                     builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
                             .appendQueryParameter("line", mLine)
-                            .appendQueryParameter("easting", String.valueOf(Easting))
-                            .appendQueryParameter("northing", String.valueOf(Northing))
-                            .build();
-                } else {
-                    REQUEST_BASE_URL =
-                            "http://www.sustainabilight.com/functions/validate_interurban_bus_map_point.php?";
-
-                    eastNorth = Utils.Deg2UTM(mapPoint.getLatLng().latitude,mapPoint.getLatLng().longitude);
-
-                    Easting = eastNorth.getEasting();
-                    Northing = eastNorth.getNorthing();
-
-                    builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
-                            .appendQueryParameter("line", mLine)
-                            .appendQueryParameter("easting", String.valueOf(Easting))
-                            .appendQueryParameter("northing", String.valueOf(Northing))
+                            .appendQueryParameter("latitude", String.valueOf(mapPoint.getLatLng().latitude))
+                            .appendQueryParameter("longitude", String.valueOf(mapPoint.getLatLng().longitude))
                             .build();
                 }
-
                 break;
 
             case ActivityFragment.ACTIVITY_RAILROAD:

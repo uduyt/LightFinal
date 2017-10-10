@@ -5,6 +5,7 @@ import android.net.Uri;
 
 import com.facebook.Profile;
 import com.witcode.light.light.Utils;
+import com.witcode.light.light.fragments.ActivityFragment;
 
 public class CheckIfLineExists extends MyServerClass implements OnTaskCompletedListener {
 
@@ -21,8 +22,18 @@ public class CheckIfLineExists extends MyServerClass implements OnTaskCompletedL
 
     private void SetUp() {
 
-        final String REQUEST_BASE_URL =
-                "http://www.sustainabilight.com/functions/check_if_line_exists.php?";
+        final String REQUEST_BASE_URL;
+
+        if(ActivityFragment.currentCity.getId()==1){
+            //Madrid
+            REQUEST_BASE_URL =
+                    "http://www.sustainabilight.com/functions/check_if_line_exists.php?";
+        }else{
+            //Gran Canaria
+            REQUEST_BASE_URL =
+                    "http://www.sustainabilight.com/functions/check_if_line_exists_canarias.php?";
+        }
+
 
 
         Uri builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()

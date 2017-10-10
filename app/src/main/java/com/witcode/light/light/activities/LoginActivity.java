@@ -179,6 +179,7 @@ public class LoginActivity extends AppCompatActivity {
                                     } else if (resultCode == LoginTask.NEED_UPDATE) {
                                         FirebaseAuth.getInstance().signOut();
                                         LoginManager.getInstance().logOut();
+                                        btLoginButton.setEnabled(true);
 
                                         MaterialDialog dialog = new MaterialDialog.Builder(mContext)
                                                 .title("Hay una nueva versión de la aplicación")

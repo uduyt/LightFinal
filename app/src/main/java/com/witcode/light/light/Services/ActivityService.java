@@ -12,6 +12,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.location.Location;
 import android.net.ConnectivityManager;
 import android.os.Binder;
@@ -28,14 +29,21 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.witcode.light.light.R;
 import com.witcode.light.light.activities.MainActivity;
 import com.witcode.light.light.backend.CheckIfValidListener;
+import com.witcode.light.light.backend.GetInitialActivityPoints;
 import com.witcode.light.light.backend.GetNearRoutePoints;
+import com.witcode.light.light.backend.MyServerClass;
 import com.witcode.light.light.backend.NetworkChangeReceiver;
 import com.witcode.light.light.backend.OnConnectivityChangeListener;
+import com.witcode.light.light.backend.OnInitialPointsCompleteListener;
 import com.witcode.light.light.backend.OnPointsCompleteListener;
+import com.witcode.light.light.backend.RetryTask;
 import com.witcode.light.light.backend.ValidateMapPoint;
+import com.witcode.light.light.domain.ActivityObject;
 import com.witcode.light.light.domain.MapPoint;
 import com.witcode.light.light.fragments.ActivityFragment;
 
@@ -52,20 +60,15 @@ public class ActivityService extends Service implements
         com.google.android.gms.location.LocationListener {
 
     private static final String LOG_TAG = "ForegroundService";
-    private int seconds, minutes, hours;
-    private Timer walkTimer;
-    public static boolean IS_SERVICE_RUNNING = false;
     private Location oldLocation, mLastLocation;
-    private double speed, distance, mLights, distanceDelta = 0;
+    private double distanceDelta = 0;
     private GoogleApiClient mGoogleApiClient;
     private ServiceBinder mActualBinder = null;
-    private String locationState;
     public MainActivity mActivity = null;
-    public static int CURRENT_ACTIVITY = -1;
     public Service mService = this;
-    private ArrayList<MapPoint> mUserRoutePoints;
-    public static String LINE;
-    public static boolean URBAN, CERCANIAS;
+    private ArrayList<RetryTask> mAsyncTasks=new ArrayList<>();
+    public static ActivityObject ActivityObject=new ActivityObject();
+    private Timer mTimer;
     BroadcastReceiver mbr;
 
 
@@ -87,17 +90,19 @@ public class ActivityService extends Service implements
                     .addApi(LocationServices.API)
                     .build();
         }
-        walkTimer = new Timer();
-        walkTimer.scheduleAtFixedRate(new ActivityService.MyTimerTask(), 0, 1000);
         mGoogleApiClient.connect();
-        mUserRoutePoints = new ArrayList<>();
-        locationState = "Buscando señal GPS";
 
+
+
+        mTimer = new Timer();
+        mTimer.scheduleAtFixedRate(new ActivityService.MyTimerTask(), 0, 3000);
+
+        //TODO ver que hacer con esto
         mbr = new NetworkChangeReceiver(new OnConnectivityChangeListener() {
             @Override
             public void OnChange(final int connectivity) {
-                if (mUserRoutePoints != null) {
-                    for (MapPoint mp : mUserRoutePoints) {
+                if (ActivityObject.getUserRoutePoints() != null) {
+                    for (MapPoint mp : ActivityObject.getUserRoutePoints()) {
                         if (mp.getValidated() == MapPoint.WAITING_VALIDATION) {
 
 
@@ -116,6 +121,7 @@ public class ActivityService extends Service implements
 
     public void setBinder(ServiceBinder serviceBinder) {
         mActualBinder = serviceBinder;
+        GetInitialActivityPoints();
     }
 
     @Override
@@ -125,7 +131,7 @@ public class ActivityService extends Service implements
 
 
             } else if (intent.getAction().equals("action_kill")) {
-                Log.v("mytag", "trying to kill service");
+                Log.v("mytag", "ActivityService: trying to kill service");
                 KillService();
             } else if (intent.getAction().equals("bind_activity")) {
 
@@ -153,7 +159,7 @@ public class ActivityService extends Service implements
 
         Notification notification = new NotificationCompat.Builder(this)
                 .setContentTitle("Actividad en proceso")
-                .setTicker("Esto es un ticker")
+                .setTicker("Actividad en proceso")
                 .setSmallIcon(R.drawable.ic_bulb)
                 .setLargeIcon(Bitmap.createScaledBitmap(icon, 128, 128, false))
                 .setContentIntent(piContent)
@@ -169,23 +175,28 @@ public class ActivityService extends Service implements
 
     @Override
     public void onDestroy() {
-        ActivityService.IS_SERVICE_RUNNING = false;
-        walkTimer.cancel();
-        seconds = 0;
-        distance = 0;
-        speed = 0;
-        mLights = 0;
+        ActivityService.ActivityObject.setRunning(false);
 
+        mTimer.cancel();
         if (mActivity != null) {
+            //TODO habria que revisarlo
             mActivity.serviceBound = false;
         }
 
-        LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient,this);
+        LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         mGoogleApiClient.disconnect();
-        super.onDestroy();
-        Log.i(LOG_TAG, "In onDestroy");
 
-        this.unregisterReceiver(mbr);
+        Log.v("mytag", "ActivityService: In onDestroy");
+
+        try{
+            this.unregisterReceiver(mbr);
+        }catch (IllegalArgumentException e){
+            e.printStackTrace();
+        }
+
+        ActivityObject=new ActivityObject();
+
+        super.onDestroy();
     }
 
     @Override
@@ -204,126 +215,126 @@ public class ActivityService extends Service implements
         public void run() {
             // Do stuff
 
-            seconds++;
-            minutes = (seconds) / 60;
-            hours = minutes / 60;
+            if (mLastLocation != null) {
+                if (oldLocation != null) {
+                    if (mLastLocation.getTime() - oldLocation.getTime() > 4000) {
+                        //Que hayan pasado minimo 4 segundos entre posiciones
+                        if (mLastLocation.getAccuracy() < 40) {
+                            //Que haya un mínimo de precisión
+                            if (mLastLocation.distanceTo(oldLocation) > (mLastLocation.getAccuracy() + oldLocation.getAccuracy())) {
+
+                                Log.v("location_update", "updating values");
+
+                                ActivityObject.setSpeed((mLastLocation.distanceTo(oldLocation) / (mLastLocation.getTime() - oldLocation.getTime())) * 3600);
 
 
-            if (seconds % 3 == 1) {
-                if (mLastLocation != null) {
+                                distanceDelta = mLastLocation.distanceTo(oldLocation);
+                                ActivityObject.addToDistance(distanceDelta);
 
 
-                    if (oldLocation != null) {
 
-                        if (mLastLocation.getTime() - oldLocation.getTime() > 4000) { //Que hayan pasado minimo 4 segundos entre posiciones
-                            if (mLastLocation.getAccuracy() < 40) {
-                                if (mLastLocation.distanceTo(oldLocation) > (mLastLocation.getAccuracy() + oldLocation.getAccuracy())) {
-                                    Log.v("location_update", "updating values");
-
-                                    speed = (mLastLocation.distanceTo(oldLocation) / (mLastLocation.getTime() - oldLocation.getTime())) * 3600;
+                                MapPoint mapPoint = new MapPoint();
+                                mapPoint.setLatLng(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()));
+                                mapPoint.setTime(mLastLocation.getTime());
+                                mapPoint.setType(MapPoint.USER_ROUTE);
 
 
-                                    distanceDelta = mLastLocation.distanceTo(oldLocation);
-                                    distance += distanceDelta;
-                                    oldLocation = mLastLocation;
+                                //formulas de lights
+                                if (ActivityObject.getType() == ActivityFragment.ACTIVITY_WALK) {
+                                    mapPoint.setLights((distanceDelta / 100) * Math.sqrt(ActivityObject.getSpeed() / 6));
+                                    ActivityObject.addToLights(mapPoint.getLights());
+                                } else if (ActivityObject.getType() == ActivityFragment.ACTIVITY_BIKE) {
+                                    mapPoint.setLights((distanceDelta / 500) * Math.sqrt(ActivityObject.getSpeed() / 15));
+                                    ActivityObject.addToLights(mapPoint.getLights());
+                                } else if (ActivityObject.getType() == ActivityFragment.ACTIVITY_BUS)
+                                    mapPoint.setLights((distanceDelta / 1300));
+
+                                else if (ActivityObject.getType() == ActivityFragment.ACTIVITY_RAILROAD)
+                                    mapPoint.setLights((distanceDelta / 1800) * Math.sqrt(ActivityObject.getSpeed() / 15));
+
+                                else if (ActivityObject.getType() == ActivityFragment.ACTIVITY_CARSHARE)
+                                    mapPoint.setLights((distanceDelta / 2000) * Math.sqrt(ActivityObject.getSpeed() / 15));
+
+                                ActivityObject.addRouteMapPoint(mapPoint);
 
 
-                                    MapPoint mapPoint = new MapPoint();
-                                    mapPoint.setLatLng(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()));
-                                    mapPoint.setTime(mLastLocation.getTime());
-                                    mapPoint.setType(MapPoint.USER_ROUTE);
-
-                                    //formulas de lights
-                                    if (CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_WALK) {
-                                        mapPoint.setLights((distanceDelta / 100) * Math.sqrt(speed / 6));
-                                        mLights += mapPoint.getLights();
-                                    } else if (CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_BIKE) {
-                                        mapPoint.setLights((distanceDelta / 500) * Math.sqrt(speed / 15));
-                                        mLights += mapPoint.getLights();
-                                    } else if (CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_BUS)
-                                        mapPoint.setLights((distanceDelta / 1300));
-
-                                    else if (CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_RAILROAD)
-                                        mapPoint.setLights((distanceDelta / 1800) * Math.sqrt(speed / 15));
-
-                                    else if (CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_CARSHARE)
-                                        mapPoint.setLights((distanceDelta / 2000) * Math.sqrt(speed / 15));
-
-                                    mUserRoutePoints.add(mapPoint);
-
-                                    if ((CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_WALK && speed > 25) ||
-                                            (CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_BIKE && speed > 60)) {
-                                        //Too fast
-                                        Intent iContentPress = new Intent(mService, MainActivity.class);
-                                        iContentPress.setAction("too_fast");
-                                        mLights=0;
-                                        iContentPress.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                                        PendingIntent piContent = PendingIntent.getActivity(mService, 0,
-                                                iContentPress, PendingIntent.FLAG_CANCEL_CURRENT);
-
-                                        try {
-                                            piContent.send();
-                                        } catch (PendingIntent.CanceledException e) {
-                                            e.printStackTrace();
-                                        }
-
-                                    }
-
-                                    if (CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_BUS || CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_RAILROAD) {
-                                        //validar mi mapPoint
-                                        if (CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_RAILROAD) {
-                                            URBAN = CERCANIAS;
-                                        }
-                                        ValidateMapPoint(mapPoint);
-                                        Log.v("tagg", "loc:: lat: " + mapPoint.getLatLng().latitude + ", lon: " + mapPoint.getLatLng().longitude);
 
 
-                                    }else if(CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_WALK || CURRENT_ACTIVITY == ActivityFragment.ACTIVITY_BIKE){
-                                        mapPoint.setValidated(MapPoint.VALIDATED);
+                                if ((ActivityObject.getType() == ActivityFragment.ACTIVITY_WALK && ActivityObject.getSpeed() > 25) ||
+                                        (ActivityObject.getType() == ActivityFragment.ACTIVITY_BIKE && ActivityObject.getSpeed() > 60)) {
+                                    //Too fast
+                                    Intent iContentPress = new Intent(mService, MainActivity.class);
+                                    iContentPress.setAction("too_fast");
+                                    ActivityObject.setLights(0);
+                                    ActivityObject.setTooFast(true);
+                                    iContentPress.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                    PendingIntent piContent = PendingIntent.getActivity(mService, 0,
+                                            iContentPress, PendingIntent.FLAG_CANCEL_CURRENT);
+
+                                    try {
+                                        piContent.send();
+                                    } catch (PendingIntent.CanceledException e) {
+                                        e.printStackTrace();
                                     }
 
                                 }
+
+                                if (ActivityObject.getType() == ActivityFragment.ACTIVITY_BUS || ActivityObject.getType() == ActivityFragment.ACTIVITY_RAILROAD) {
+                                    //validar mi mapPoint
+                                    ValidateMapPoint(mapPoint);
+                                } else if (ActivityObject.getType() == ActivityFragment.ACTIVITY_WALK || ActivityObject.getType() == ActivityFragment.ACTIVITY_BIKE) {
+                                    mapPoint.setValidated(MapPoint.VALIDATED);
+                                }
+
+                                PolylineOptions pOptions = new PolylineOptions();
+                                pOptions.add(new LatLng(oldLocation.getLatitude(), oldLocation.getLongitude()));
+                                pOptions.add(mapPoint.getLatLng());
+                                pOptions.color(getColorFromMapPoint(mapPoint));
+                                pOptions.zIndex(2);
+
+                                ActivityObject.addRoutePolylineOption(pOptions);
+
+                                SendNewMapPointToUi(pOptions);
+
+                                oldLocation = mLastLocation;
                             }
                         }
-
-                        if (mLastLocation.getTime() - oldLocation.getTime() > 9000) { //Ver si han pasado mas de 9segs entre posiciones
-                            locationState = "La señal GPS es débil";
-                        } else {
-                            locationState = "La señal GPS es buena";
-                        }
-
-
-                    } else {
-
-                        if (mLastLocation.getAccuracy() < 40) {                    //primera posicion con buena precision
-                            oldLocation = mLastLocation;
-                            MapPoint mapPoint = new MapPoint();
-                            mapPoint.setTime(mLastLocation.getTime());
-                            mapPoint.setLatLng(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()));
-                            mapPoint.setType(MapPoint.USER_ROUTE);
-
-                            mUserRoutePoints.add(mapPoint);
-                            locationState = "Buscando señal GPS";
-
-                            ValidateMapPoint(mapPoint);
-                        } else {
-                            //primera posicion con mala precision
-                            locationState = "La señal GPS es débil";
-                        }
                     }
-                } else { //mLastLocation is null
-                    if (seconds > 10) {
-                        locationState = "no hay señal GPS...";
 
+                    if (mLastLocation.getTime() - oldLocation.getTime() > 9000) { //Ver si han pasado mas de 9segs entre posiciones
+                        SendGPSUpdate("La señal GPS es débil");
+                    } else {
+                        SendGPSUpdate("La señal GPS es buena");
+                    }
+
+
+                } else {
+                    //old location is null
+
+                    if (mLastLocation.getAccuracy() < 40) { //primera posicion con buena precision
+                        oldLocation = mLastLocation;
+                        MapPoint mapPoint = new MapPoint();
+                        mapPoint.setTime(mLastLocation.getTime());
+                        mapPoint.setLatLng(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()));
+                        mapPoint.setType(MapPoint.USER_ROUTE);
+
+                        ActivityObject.addRouteMapPoint(mapPoint);
+                        SendGPSUpdate("Buscando señal GPS");
+
+                        ValidateMapPoint(mapPoint);
+                    } else {
+                        //primera posicion con mala precision
+                        SendGPSUpdate("La señal GPS es débil");
                     }
                 }
+            } else {
+                //mLastLocation is null
+                if (ActivityObject.getSeconds() > 10) {
+                    SendGPSUpdate("No hay señal GPS");
 
-                Log.v("ForegroundService", "update with; seconds: " + seconds + ", distance: " + distance + ", speed: " + speed);
+                }
             }
-            if (mActualBinder != null) {
-                mActualBinder.OnGPSUpdate(locationState);
-                mActualBinder.OnUpdate(distance, speed, seconds, mLights, mUserRoutePoints);
-            }
+
         }
     }
 
@@ -369,48 +380,138 @@ public class ActivityService extends Service implements
 
     public void KillService() {
         stopForeground(true);
-        ActivityService.IS_SERVICE_RUNNING = false;
+        ActivityService.ActivityObject.setRunning(false);
         stopSelf();
     }
 
-    private void ValidateMapPoint(MapPoint mp){
-        (new ValidateMapPoint(mService, LINE, CURRENT_ACTIVITY, URBAN, mp, new CheckIfValidListener() {
+    private void SendGPSUpdate(String update){
+        if(mActualBinder!=null){
+            mActualBinder.OnGPSUpdate(update);
+        }
+    }
+
+    private void ValidateMapPoint(final MapPoint mp) {
+
+        (new ValidateMapPoint(mService, ActivityObject.getLine(), ActivityObject.getType(), ActivityObject.isCercaniasOrUrban(), mp, new CheckIfValidListener() {
             @Override
             public void OnComplete(boolean valid, MapPoint mapPoint) {
 
                 MapPoint mp;
-                for (int i = 0; i < mUserRoutePoints.size(); i++) {
-                    mp = mUserRoutePoints.get(i);
+                for (int i = 0; i < ActivityObject.getUserRoutePoints().size(); i++) {
+                    mp = ActivityObject.getUserRoutePoints().get(i);
                     if (mp.getId().equals(mapPoint.getId())) {
-                        if (valid && (i == 0 || mUserRoutePoints.get(i - 1).getValidated() != MapPoint.NOT_VALIDATED))
+                        if (valid && (i == 0 || ActivityObject.getUserRoutePoints().get(i - 1).getValidated() != MapPoint.NOT_VALIDATED))
                             //es valido y el anterior no estaba fuera
 
-                            if (i != 0 && mp.getTime() - mUserRoutePoints.get(i - 1).getTime() > 120000) {
+                            if (i != 0 && mp.getTime() - ActivityObject.getUserRoutePoints().get(i - 1).getTime() > 120000) {
                                 //es valido pero ha pasado mucho tiempo entre el anterior y este
                                 mp.setValidated(MapPoint.BIG_JUMP);
-                                Log.v("tagg", "bigjump1: con i: " + i + ", mappoints: " + mUserRoutePoints.toString());
                             } else {
                                 mp.setValidated(MapPoint.VALIDATED);
-                                mLights += mp.getLights();
+                                ActivityObject.addToLights(mp.getLights());
                             }
 
 
-                        else if (valid && mUserRoutePoints.get(i - 1).getValidated() == MapPoint.NOT_VALIDATED) {
+                        else if (valid && ActivityObject.getUserRoutePoints().get(i - 1).getValidated() == MapPoint.NOT_VALIDATED) {
                             //es valido pero el anterior estaba fuera de camino
                             mp.setValidated(MapPoint.BIG_JUMP);
-
-                            Log.v("tagg", "bigjump2: con i: " + i + ", mappoints: " + mUserRoutePoints.toString());
-                        } else
+                        } else {
                             //no es valido
                             mp.setValidated(MapPoint.NOT_VALIDATED);
+                        }
+
+                        if(i>0){
+                            ActivityObject.getUserRoutePolylines().get(i - 1).color(getColorFromMapPoint(mp));
+                            SendUpdatedPolylineToUi(i - 1, mp);
+                        }
+
+                        if(mAsyncTasks.size()>0){
+                            RetryTask serverClass=mAsyncTasks.get(mAsyncTasks.size()-1);
+                            mAsyncTasks.remove(mAsyncTasks.size()-1);
+                            serverClass.runTask();
+                        }
+
                     }
                 }
             }
 
             @Override
             public void OnError(String result, int resultCode, int resultType) {
-                //todo gestionar sin conexion
+                if(resultCode==MyServerClass.NOT_CONNECTED){
+                    mAsyncTasks.add(new ValidateMapPoint(mService,ActivityObject.getLine(), ActivityObject.getType(), ActivityObject.isCercaniasOrUrban(), mp, this));
+                }
             }
         })).execute();
+    }
+
+    private void SendNewMapPointToUi(PolylineOptions polylineOptions) {
+        if (mActualBinder != null) {
+            mActualBinder.OnNewMapPoint(ActivityObject.getDistance(), ActivityObject.getSpeed(), polylineOptions);
+            Log.v("mytag", "ActivityService: sent new mappoint to ui");
+        }
+    }
+
+    private void SendUpdatedPolylineToUi(int index, MapPoint mapPoint) {
+        if (mActualBinder != null) {
+            mActualBinder.OnPolylineUpdate(index
+                    , getColorFromMapPoint(mapPoint));
+        }
+    }
+
+    private int getColorFromMapPoint(MapPoint mp) {
+        int color;
+
+        switch (mp.getValidated()) {
+            case MapPoint.VALIDATED:
+                color = Color.parseColor("#00ff00");
+                break;
+            case MapPoint.NOT_VALIDATED:
+            case MapPoint.BIG_JUMP:
+                color = Color.parseColor("#ff0000");
+                break;
+            default:
+                color = Color.parseColor("#0000ff");
+                break;
+        }
+
+        return color;
+    }
+
+    private void GetInitialActivityPoints(){
+
+        if(ActivityObject.getType()==ActivityFragment.ACTIVITY_BUS||ActivityObject.getType()==ActivityFragment.ACTIVITY_RAILROAD){
+            Log.v("mytag","ActivityService: on initialactivitypoints method");
+            (new GetNearRoutePoints(this, ActivityObject.isCercaniasOrUrban(), ActivityObject.getType(), ActivityObject.getLine(), new OnPointsCompleteListener() {
+                @Override
+                public void OnComplete(ArrayList<ArrayList<MapPoint>> points) {
+                    Log.v("mytag","ActivityService: initial points: " + points);
+                    PolylineOptions pOptions = new PolylineOptions();
+                    for (ArrayList<MapPoint> mps : points) {
+                        pOptions = new PolylineOptions();
+                        for (MapPoint mp : mps) {
+                            pOptions.add(mp.getLatLng());
+                        }
+
+                        pOptions.color(Color.parseColor("#000000"));
+                        pOptions.zIndex(1);
+                        ActivityObject.addToInitialRoutePolylines(pOptions);
+                    }
+
+                    if(mActualBinder!=null){
+                        mActualBinder.OnInitialPointsArrived(ActivityObject.getInitialRoutePolylines());
+                        Log.v("mytag","ActivityService: on initialactivitypoints sent de verdad");
+                    }
+                }
+
+                @Override
+                public void OnError(String result, int resultCode, int resultType) {
+                    if(resultCode==MyServerClass.NOT_CONNECTED){
+                        mAsyncTasks.add(new GetNearRoutePoints(mService, ActivityObject.isCercaniasOrUrban(), ActivityObject.getType(), ActivityObject.getLine(), this));
+                    }
+
+                }
+            })).execute();
+
+        }
     }
 }

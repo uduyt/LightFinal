@@ -46,11 +46,12 @@ import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 import com.witcode.light.light.R;
 import com.witcode.light.light.Services.ActivityService;
-import com.witcode.light.light.Services.RetryService;
+import com.witcode.light.light.backend.AddAnalytics;
 import com.witcode.light.light.backend.EndActivityTask;
 import com.witcode.light.light.backend.NetworkChangeReceiver;
-import com.witcode.light.light.backend.RetryTask;
 import com.witcode.light.light.backend.UpdateToken;
+import com.witcode.light.light.backend.UpdateUserData;
+import com.witcode.light.light.domain.ActivityObject;
 import com.witcode.light.light.domain.MapPoint;
 import com.witcode.light.light.domain.MarketItem;
 import com.witcode.light.light.fragments.ActivityFragment;
@@ -90,15 +91,15 @@ public class MainActivity extends AppCompatActivity
     private View header;
     public boolean serviceBound = false;
     private String mCurrentFragment = "";
-    private ServiceBinder mServiceBinder;
+    private ServiceBinder mServiceBinder=null;
     private ActivityService mActivityService = null;
-    private RetryService mRetryService = null;
     private TextView tvTime, tvDistance, tvSpeed, tvGPS, tvDialogLights;
     private int i;
     private long mTime;
-    private ServiceConnection retryServiceConnection, mActivityServiceConnection;
+    private long timeIn;
+    private ServiceConnection mActivityServiceConnection;
 
-    public final static int MY_PERMISSIONS_REQUEST_READ_CONTACTS=4532;
+    public final static int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 4532;
 
 
     @Override
@@ -188,7 +189,7 @@ public class MainActivity extends AppCompatActivity
         new GetAdminLevel(mContext, new OnTaskCompletedListener() {
             @Override
             public void OnComplete(String result, int resultCode, int resultType) {
-                if (resultCode == MyServerClass.SUCCESSFUL && Double.parseDouble(result) >= 90) {
+                if (resultCode == MyServerClass.SUCCESSFUL && result != null && !result.isEmpty() && Double.parseDouble(result) >= 90) {
                     navigationView.getMenu().findItem(R.id.nav_admin).setVisible(true);
                 }
             }
@@ -233,7 +234,10 @@ public class MainActivity extends AppCompatActivity
             }).execute();
         }
 
+        Log.v("mytag","starting activity fragment");
         GotoStartActivityFragment();
+
+
     }
 
     public DrawerLayout getDrawerLayout() {
@@ -256,19 +260,12 @@ public class MainActivity extends AppCompatActivity
             GoToFragment("admin");
         } else if (id == R.id.nav_logout) {
 
-            LoginManager.getInstance().logOut();
-            FirebaseAuth.getInstance().signOut();
-            Intent intent = new Intent(this, LoginActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            startActivity(intent);
-
-            finish();
+            logOut();
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
 
-        StartRetryService();
 
         return true;
     }
@@ -362,7 +359,7 @@ public class MainActivity extends AppCompatActivity
                 // app-defined int constant. The callback method gets the
                 // result of the request.
             }
-        }else{
+        } else {
             Log.v("tagg", "gotostartactivityfragment");
             ActivityFragment mStartFragment = new ActivityFragment();
             fragmentTransaction = getSupportFragmentManager().beginTransaction();
@@ -372,17 +369,11 @@ public class MainActivity extends AppCompatActivity
             mCurrentFragment = "activity";
             mStartFragment.setmActivity(this);
         }
-
-
-
     }
 
-    public EndActivityFragment GoToEndActivityFragment(){
-        return GoToEndActivityFragment("...", "...", "...", "...", "...", ActivityService.LINE, ActivityService.CURRENT_ACTIVITY, ActivityService.URBAN, new ArrayList<MapPoint>());
-    }
-    public EndActivityFragment GoToEndActivityFragment(String distance, String time, String speed, String lights, String endText, String line, int activityType, boolean urbanCercanias, ArrayList<MapPoint> userPoints) {
-        EndActivityFragment mFragment = new EndActivityFragment();
-        mFragment.setData(distance, time, speed, lights, endText, line, activityType, urbanCercanias, userPoints);
+
+    public EndActivityFragment GoToEndActivityFragment(ActivityObject activityObject, String endText) {
+        EndActivityFragment mFragment =EndActivityFragment.getInstance(activityObject, endText);
         fragmentTransaction = getSupportFragmentManager().beginTransaction();
         fragmentTransaction.addToBackStack("end_activity");
         fragmentTransaction.replace(R.id.container, mFragment);
@@ -391,44 +382,20 @@ public class MainActivity extends AppCompatActivity
 
         return mFragment;
     }
-
-    public void StartRetryService() {
-        Log.v("tagg", "mainactivity trying to start retry service");
-        retryServiceConnection = new ServiceConnection() {
-            public void onServiceConnected(ComponentName className, IBinder service) {
-                RetryService.IS_SERVICE_RUNNING=true;
-                mRetryService = ((RetryService.LocalBinder) service).getService();
-                Log.i("tagg", "retry service_connected");
-            }
-
-            public void onServiceDisconnected(ComponentName className) {
-                mRetryService = null;
-            }
-        };
-
-
-        bindService(new Intent(MainActivity.this,
-                RetryService.class), retryServiceConnection, Context.BIND_AUTO_CREATE);
-    }
-
-    public void StopRetryService() {
-        Log.v("tagg", "mainactivity stopping retry service");
-        unbindService(retryServiceConnection);
-        RetryService.IS_SERVICE_RUNNING=false;
-        mRetryService = null;
-    }
-
-    public void StartActivityService(final int activityType, final ServiceBinder binder) {
+    public void StartActivityService(final ActivityObject activityObject) {
         mActivityServiceConnection = new ServiceConnection() {
             public void onServiceConnected(ComponentName className, IBinder service) {
 
                 mActivityService = ((ActivityService.LocalBinder) service).getService();
                 mActivityService.mActivity = (MainActivity) mContext;
-                mActivityService.setBinder(binder);
-                ActivityService.CURRENT_ACTIVITY=activityType;
+                ActivityService.ActivityObject = activityObject;
+                if(mServiceBinder!=null){
+                    mActivityService.setBinder(mServiceBinder);
+                }
+
                 serviceBound = true;
                 Log.i("ForegroundService", "service_connected");
-                ActivityService.IS_SERVICE_RUNNING=true;
+                ActivityService.ActivityObject.setRunning(true);
             }
 
             public void onServiceDisconnected(ComponentName className) {
@@ -440,38 +407,31 @@ public class MainActivity extends AppCompatActivity
         Log.v("ForegroundService", "service bound");
     }
 
-    public void setServiceBinder(ServiceBinder binder){
-        if(mActivityService!=null){
+    public void setServiceBinder(ServiceBinder binder) {
+        Log.v("mytag", "in setservicebinder method");
+        if (mActivityService != null) {
+            Log.v("mytag", "setting binder");
             mActivityService.setBinder(binder);
+        }else{
+            mServiceBinder=binder;
         }
     }
 
     public void StopActivityService() {
-        if(mActivityService!= null && ActivityService.IS_SERVICE_RUNNING==true){
-            try{
+        if (mActivityService != null && ActivityService.ActivityObject.isRunning()) {
+            try {
                 unbindService(mActivityServiceConnection);
-                ActivityService.IS_SERVICE_RUNNING=false;
+                ActivityService.ActivityObject.setRunning(false);
                 Log.v("tagg", "service unbound");
-            }catch (IllegalArgumentException e){
+            } catch (IllegalArgumentException e) {
                 e.printStackTrace();
                 Log.v("tagg", "caught unbind exception");
             }
-        }else{
+        } else {
             Log.v("tagg", "service was null or cte was not true");
         }
 
     }
-
-    public void AddToRetryService(RetryTask task) {
-        if (mRetryService != null) {
-            mRetryService.AddTask(task);
-            Log.v("tagg", "mainactivity retryservice not null");
-        } else {
-            StartRetryService();
-            Log.v("tagg", "mainactivity retryservice is null");
-        }
-    }
-
 
     @Override
     public void onBackPressed() {
@@ -486,13 +446,10 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     protected void onDestroy() {
-        if (ActivityService.IS_SERVICE_RUNNING) {
+        if (ActivityService.ActivityObject.isRunning()) {
             StopActivityService();
         }
 
-        if(RetryService.IS_SERVICE_RUNNING){
-            StopRetryService();
-        }
 
         super.onDestroy();
     }
@@ -500,80 +457,26 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onNewIntent(Intent intent) {
         Log.v("tagg", "new intent: " + intent);
-        if(intent!=null && intent.getAction()!= null && !mCurrentFragment.equals("activity") && intent.getAction().equals("started_activity")){
-            GotoStartActivityFragment();
-        }else if(intent!=null && intent.getAction()!= null && intent.getAction().equals("action_stop")){
-            final EndActivityFragment mFragment=GoToEndActivityFragment();
-            mActivityService.setBinder(new ServiceBinder() {
-                @Override
-                public void OnUpdate(double distance, double speed, int seconds, double lights, ArrayList<MapPoint> points) {
-                    mActivityService.setBinder(null);
-                    StopActivityService();
+        if (intent != null && intent.getAction() != null) {
+            if (!mCurrentFragment.equals("activity") && intent.getAction().equals("started_activity")) {
+                GotoStartActivityFragment();
+            } else if (intent.getAction().equals("action_stop")) {
+                final EndActivityFragment mFragment = GoToEndActivityFragment(ActivityService.ActivityObject,"HAS TERMINADO LA ACTIVIDAD");
+                mActivityService.setBinder(null);
+                StopActivityService();
 
-                    mFragment.setmDistance(String.valueOf(Math.round(distance * 100.0) / 100.0) + "m");
-                    mFragment.setmSpeed(String.valueOf(Math.round(speed * 100.0) / 100.0) + "km/h");
-                    mFragment.setmLights(String.valueOf(Math.round(lights * 100.0) / 100.0));
+            } else if (intent.getAction().equals("too_fast")) {
+                final EndActivityFragment mFragment = GoToEndActivityFragment(ActivityService.ActivityObject, "VAS DEMASIADO RÁPIDO");
 
-                    int minutes = (seconds) / 60;
-                    int hours = minutes / 60;
+                mActivityService.setBinder(null);
+                StopActivityService();
 
-                    String shours, sminutes, sseconds;
+            }
 
-                    shours = hours < 10 ? "0" + String.valueOf(hours) : String.valueOf(hours);
-                    sminutes = (minutes % 60) < 10 ? "0" + String.valueOf(minutes % 60) : String.valueOf(minutes % 60);
-                    sseconds = (seconds % 60) < 10 ? "0" + String.valueOf(seconds % 60) : String.valueOf(seconds % 60);
-
-                    mFragment.setmTime(shours + ":" + sminutes + ":" + sseconds);
-                    mFragment.setmUserRoutePoints(points);
-                    mFragment.setmEndText("HAS TERMINADO LA ACTIVIDAD");
-
-                    mFragment.UpdateUI();
-
-                }
-
-                @Override
-                public void OnGPSUpdate(String GPS) {
-
-                }
-            });
-        }else if(intent.getAction().equals("too_fast")){
-            final EndActivityFragment mFragment=GoToEndActivityFragment();
-            mActivityService.setBinder(new ServiceBinder() {
-                @Override
-                public void OnUpdate(double distance, double speed, int seconds, double lights, ArrayList<MapPoint> points) {
-                    mActivityService.setBinder(null);
-                    StopActivityService();
-
-                    mFragment.setmDistance(String.valueOf(Math.round(distance * 100.0) / 100.0) + "m");
-                    mFragment.setmSpeed(String.valueOf(Math.round(speed * 100.0) / 100.0) + "km/h");
-                    mFragment.setmLights("0");
-
-                    int minutes = (seconds) / 60;
-                    int hours = minutes / 60;
-
-                    String shours, sminutes, sseconds;
-
-                    shours = hours < 10 ? "0" + String.valueOf(hours) : String.valueOf(hours);
-                    sminutes = (minutes % 60) < 10 ? "0" + String.valueOf(minutes % 60) : String.valueOf(minutes % 60);
-                    sseconds = (seconds % 60) < 10 ? "0" + String.valueOf(seconds % 60) : String.valueOf(seconds % 60);
-
-                    mFragment.setmTime(shours + ":" + sminutes + ":" + sseconds);
-                    mFragment.setmUserRoutePoints(points);
-                    mFragment.setmEndText("VAS DEMASIADO RÁPIDO");
-
-                    mFragment.UpdateUI();
-
-                }
-
-                @Override
-                public void OnGPSUpdate(String GPS) {
-
-                }
-            });
         }
-
         super.onNewIntent(intent);
     }
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
@@ -599,5 +502,49 @@ public class MainActivity extends AppCompatActivity
             // other 'case' lines to check for other
             // permissions this app might request
         }
+    }
+
+    public void logOut(){
+        LoginManager.getInstance().logOut();
+        FirebaseAuth.getInstance().signOut();
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent);
+
+        finish();
+    }
+    @Override
+    protected void onResume() {
+
+        (new UpdateUserData(this, new OnTaskCompletedListener() {
+            @Override
+            public void OnComplete(String result, int resultCode, int resultType) {
+
+            }
+        })).execute();
+
+        (new AddAnalytics(this, "activity_resume","null","null","null", new OnTaskCompletedListener() {
+            @Override
+            public void OnComplete(String result, int resultCode, int resultType) {
+
+            }
+        })).execute();
+
+        timeIn=System.currentTimeMillis();
+
+        super.onResume();
+
+    }
+
+    @Override
+    protected void onPause() {
+        //Analytics: paso como valor el tiempo desde resume hasta pause
+        (new AddAnalytics(this, "activity_pause",String.valueOf((System.currentTimeMillis()-timeIn)/1000),"null","null", new OnTaskCompletedListener() {
+            @Override
+            public void OnComplete(String result, int resultCode, int resultType) {
+
+            }
+        })).execute();
+        super.onPause();
     }
 }

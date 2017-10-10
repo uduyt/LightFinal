@@ -49,10 +49,6 @@ public class EndActivityTask implements RetryTask {
         mUrbanCercanias = urban_cercanias;
     }
 
-    @Override
-    public boolean isSuccessful() {
-        return lightsSent && areAllValidated();
-    }
 
     @Override
     public void runTask() {

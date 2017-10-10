@@ -49,17 +49,30 @@ public class GetNearRoutePoints extends MyServerClass implements OnTaskCompleted
         switch (activityType) {
             case ActivityFragment.ACTIVITY_BUS:
 
-                if (urban_cercanias) {
-                    REQUEST_BASE_URL =
-                            "http://www.sustainabilight.com/functions/get_near_urban_bus_route.php?";
+                if(ActivityFragment.currentCity.getId()==1) {
+                    //Madrid
+
+                    if (urban_cercanias) {
+                        REQUEST_BASE_URL =
+                                "http://www.sustainabilight.com/functions/get_near_urban_bus_route.php?";
 
 
-                    builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
-                            .appendQueryParameter("line", Line)
-                            .build();
+                        builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
+                                .appendQueryParameter("line", Line)
+                                .build();
+                    } else {
+                        REQUEST_BASE_URL =
+                                "http://www.sustainabilight.com/functions/get_near_interurban_bus_route.php?";
+
+
+                        builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
+                                .appendQueryParameter("line", Line)
+                                .build();
+                    }
                 }else{
+                    //Gran Canaria
                     REQUEST_BASE_URL =
-                            "http://www.sustainabilight.com/functions/get_near_interurban_bus_route.php?";
+                            "http://www.sustainabilight.com/functions/get_near_bus_route_canarias.php?";
 
 
                     builtUri = Uri.parse(REQUEST_BASE_URL).buildUpon()
@@ -104,10 +117,14 @@ public class GetNearRoutePoints extends MyServerClass implements OnTaskCompleted
         super.setUri(builtUri);
         super.setListener(this);
 
+        Log.v("taggg","url: " + builtUri.toString());
+
     }
 
     @Override
     public void OnComplete(String result, int resultCode, int resultType) {
+        Log.v("taggg","onComplete: result: " + result + ", resultCode: " + resultCode + ", resultType: " + resultType);
+
         if (resultType != MyServerClass.SUCCESSFUL) {
             if (resultCode == MyServerClass.NULL_RESULT) {
                 //maybe it doesnt matter

@@ -1,6 +1,7 @@
 package com.witcode.light.light.domain;
 
 import com.google.android.gms.maps.model.LatLng;
+import com.google.maps.android.clustering.ClusterItem;
 
 import java.util.UUID;
 
@@ -8,7 +9,7 @@ import java.util.UUID;
  * Created by carlo on 17/03/2017.
  */
 
-public class MapPoint {
+public class MapPoint implements ClusterItem{
     public final static int USER_ROUTE=1;
     public final static int TRANSPORT_ROUTE=2;
     public final static int BUS_STOP=3;
@@ -19,11 +20,13 @@ public class MapPoint {
     public final static int BIG_JUMP=-4;
 
     private String Id;
+    private String StopId;
     private LatLng LatLng;
     private int Type;
     private int validated=WAITING_VALIDATION;
     private double Lights;
     private long Time;
+    private String Name;
 
 
     public MapPoint() {
@@ -36,6 +39,14 @@ public class MapPoint {
 
     public void setId(String id) {
         Id = id;
+    }
+
+    public String getStopId() {
+        return StopId;
+    }
+
+    public void setStopId(String stopId) {
+        StopId = stopId;
     }
 
     public com.google.android.gms.maps.model.LatLng getLatLng() {
@@ -78,6 +89,13 @@ public class MapPoint {
         Time = time;
     }
 
+    public String getName() {
+        return Name;
+    }
+
+    public void setName(String name) {
+        Name = name;
+    }
 
     @Override
     public boolean equals(Object obj) {
@@ -98,4 +116,12 @@ public class MapPoint {
     public String toString() {
         return "Map point with id: " + Id + ", validated=" + validated + ", lights: " + Math.round(Lights);
     }
+
+    @Override
+    public LatLng getPosition() {
+        return LatLng;
+    }
+
+
+
 }
