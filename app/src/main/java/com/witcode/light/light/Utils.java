@@ -1,6 +1,19 @@
 package com.witcode.light.light;
 
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.support.v4.app.NotificationCompat;
+
+import com.witcode.light.light.activities.MainActivity;
+import com.witcode.light.light.backend.UpdateLights;
 import com.witcode.light.light.domain.EastNorth;
+import com.witcode.light.light.fragments.ActivityFragment;
+
+import static android.content.Context.NOTIFICATION_SERVICE;
 
 /**
  * Created by rosety on 1/6/17.
@@ -63,5 +76,88 @@ public class Utils {
         Northing = Math.round(Northing * 100) * 0.01;
 
         return new EastNorth(Easting,Northing);
+    }
+
+    public static String getUpdateLightsActionTypeFromActivityActionType(int type){
+        String actionType;
+        switch (type) {
+            case ActivityFragment.ACTIVITY_WALK:
+                actionType = UpdateLights.WALK;
+                break;
+            case ActivityFragment.ACTIVITY_BIKE:
+                actionType = UpdateLights.BIKE;
+                break;
+
+            case ActivityFragment.ACTIVITY_BUS:
+                actionType = UpdateLights.BUS;
+                break;
+
+            case ActivityFragment.ACTIVITY_RAILROAD:
+                actionType = UpdateLights.RAILROAD;
+                break;
+
+            case ActivityFragment.ACTIVITY_RECYCLE:
+                actionType = UpdateLights.RECYCLE;
+                break;
+
+            case ActivityFragment.ACTIVITY_CARSHARE:
+                actionType = UpdateLights.CAR_SHARE;
+                break;
+
+            default:
+                actionType = UpdateLights.OTHER;
+                break;
+
+        }
+        return actionType;
+    }
+
+    public static void sendNotification(Context c,String title, String content, String action) {
+
+        Intent iContentPress = new Intent(c, MainActivity.class);
+
+        iContentPress.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
+        if(action!=null){
+            switch (action){
+                case "start_activity":
+                    iContentPress.setAction("start_activity");
+                    break;
+                case "ranking":
+                    iContentPress.setAction("ranking");
+                    break;
+                case "market":
+                    iContentPress.setAction("market");
+                    break;
+                default:
+                    iContentPress.setAction("normal");
+                    break;
+            }
+        }else{
+            iContentPress.setAction("normal");
+        }
+
+
+        PendingIntent piContent = PendingIntent.getActivity(c, 0,
+                iContentPress, 0);
+
+        Bitmap icon = BitmapFactory.decodeResource(c.getResources(),
+                R.mipmap.ic_icono_app);
+
+        NotificationCompat.Builder mBuilder =
+                new NotificationCompat.Builder(c)
+                        .setContentTitle(title)
+                        .setContentText(content)
+                        .setSmallIcon(R.drawable.ic_bulb)
+                        .setLargeIcon(Bitmap.createScaledBitmap(icon, 128, 128, false))
+                        .setContentIntent(piContent)
+                        .setOngoing(false);
+        NotificationManager mNotifyMgr =
+                (NotificationManager) c.getSystemService(NOTIFICATION_SERVICE);
+        // Builds the notification and issues it.
+        mNotifyMgr.notify(1, mBuilder.build());
+
+
     }
 }

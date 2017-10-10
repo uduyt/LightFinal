@@ -199,7 +199,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
-                        android:text="Esperando conexión a internet para validar y sumarte tus lights..."
+                        android:text="Tus lights se te sumarán cuando haya una conexión a internet"
                         android:textColor="@color/colorPrimaryDark"
                         android:textSize="17sp"
                         android:textStyle="bold"

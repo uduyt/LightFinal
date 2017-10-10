@@ -43,9 +43,10 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class RetryService extends Service {
-    private ArrayList<RetryTask> mTasks = new ArrayList<>();
+    private static ArrayList<RetryTask> mTasks = new ArrayList<>();
     private NetworkChangeReceiver mbr;
-    public static boolean IS_SERVICE_RUNNING=false;
+    private Timer RetryTimer;
+    public static boolean IS_SERVICE_RUNNING = false;
 
 
     public class LocalBinder extends Binder {
@@ -62,42 +63,48 @@ public class RetryService extends Service {
         mbr = new NetworkChangeReceiver(new OnConnectivityChangeListener() {
             @Override
             public void OnChange(int connectivity) {
-                Log.v("tagg","retry service connectivity changed");
-                for (RetryTask task : mTasks) {
-                    if (task.isSuccessful()) {
-                        Log.v("tagg","retry service task not successful");
-                        mTasks.remove(task);
-                    } else {
-                        task.runTask();
-                    }
+                Log.v("mytag", "RetryService: connectivity changed");
+                RunTasks();
 
-                }
-
-                Log.v("tagg","retry service tasks: " + mTasks.toString());
+                Log.v("mytag", "RetryService: tasks: " + mTasks.toString());
             }
         });
         IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
         filter.addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED);
         this.registerReceiver(mbr, filter);
 
-        IS_SERVICE_RUNNING=true;
+        IS_SERVICE_RUNNING = true;
+
+        RetryTimer = new Timer();
+        RetryTimer.scheduleAtFixedRate(new RetryService.MyTimerTask(), 0, 10000);
+    }
+
+    public static void RunTasks() {
+        Log.v("mytag", "RetryService: RUNTASKS: " + mTasks.toString());
+        for(int i=0;i<mTasks.size();){
+            mTasks.get(0).runTask();
+            mTasks.remove(0);
+            Log.v("mytag", "RetryService: tasks: " + mTasks.toString() + ", size= " + mTasks.size());
+        }
+
     }
 
 
-    public void AddTask(RetryTask task) {
-        if (!mTasks.contains(task))
-            mTasks.add(task);
+    public static void AddTask(RetryTask task) {
+        mTasks.add(task);
 
-        Log.v("tagg","retry service tasks: " + mTasks.toString());
+        Log.v("mytag", "RetryService: addtask tasks: " + mTasks.toString());
     }
+
+
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
-            IS_SERVICE_RUNNING=true;
+            IS_SERVICE_RUNNING = true;
         }
 
-        Log.v("tagg","retry service onstartcommand");
+        Log.v("mytag", "RetryService: onstartcommand");
 
         return START_NOT_STICKY;
     }
@@ -105,17 +112,28 @@ public class RetryService extends Service {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        Log.v("tagg","retry service onbind");
+        Log.v("mytag", "RetryService: onbind");
         return mBinder;
-
     }
+    private LocalBinder mBinder = new LocalBinder();
 
-    private LocalBinder mBinder= new LocalBinder();
     @Override
     public void onDestroy() {
 
         this.unregisterReceiver(mbr);
-        IS_SERVICE_RUNNING=false;
+        RetryTimer.cancel();
+        IS_SERVICE_RUNNING = false;
     }
 
+
+    private class MyTimerTask extends TimerTask {
+        @Override
+        public void run() {
+            // Do stuff
+            Log.v("mytag", "RetryService: timer task running");
+            if(mTasks!=null && mTasks.size()>0)
+                RunTasks();
+
+        }
+    }
 }

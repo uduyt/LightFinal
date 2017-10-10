@@ -1,7 +1,12 @@
 package com.witcode.light.light.fragments;
 
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.v4.app.Fragment;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -17,45 +22,38 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.witcode.light.light.R;
+import com.witcode.light.light.Services.ActivityService;
+import com.witcode.light.light.Services.EndService;
+import com.witcode.light.light.Services.EndServiceBinder;
 import com.witcode.light.light.activities.MainActivity;
-import com.witcode.light.light.backend.AddActivityHistory;
 import com.witcode.light.light.backend.EndActivityTask;
-import com.witcode.light.light.backend.MyServerClass;
-import com.witcode.light.light.backend.OnTaskCompletedListener;
-import com.witcode.light.light.backend.OnTaskUpdateListener;
-import com.witcode.light.light.backend.UpdateLights;
+import com.witcode.light.light.domain.ActivityObject;
 import com.witcode.light.light.domain.MapPoint;
 
 import java.util.ArrayList;
+import java.util.Locale;
 
 
 public class EndActivityFragment extends Fragment {
     private static Toolbar myToolbar;
-    private RecyclerView recyclerView;
-    private ProgressBar progressBar;
     private View myView;
     private TextView tvDistance, tvTime, tvLights, tvSpeed, tvEndText, tvWaitingValid, tvValid;
-    private String mDistance, mTime, mLights, mSpeed, mEndText, mLine;
-    private boolean mUrbanCercanias;
-    private int mActivityType;
-    private ArrayList<MapPoint> mUserRoutePoints;
+    private ActivityObject ActObject;
     private EndActivityTask endTask;
+    private String EndText = "";
     private String mActionType;
+    private boolean finished = true;
+    private ServiceConnection endServiceConnection;
+    private EndService mService;
 
-    public EndActivityFragment() {
-        // Required empty public constructor
+    public static EndActivityFragment getInstance(ActivityObject activityObject, String endText) {
+        EndActivityFragment fragment = new EndActivityFragment();
+        fragment.setActObject(activityObject);
+        fragment.setEndText(endText);
+        return fragment;
     }
 
-    public void setData(String distance, String time, String speed, String lights, String endText, String line, int activityType, boolean urbanCercanias, ArrayList<MapPoint> userPoints) {
-        mDistance = distance;
-        mTime = time;
-        mSpeed = speed;
-        mLights = lights;
-        mEndText = endText;
-        mUserRoutePoints = userPoints;
-        mLine = line;
-        mActivityType = activityType;
-        mUrbanCercanias = urbanCercanias;
+    public EndActivityFragment() {
     }
 
     @Override
@@ -87,164 +85,102 @@ public class EndActivityFragment extends Fragment {
         tvWaitingValid = (TextView) myView.findViewById(R.id.tv_waiting_valid);
         tvValid = (TextView) myView.findViewById(R.id.tv_valid_lights);
 
-        UpdateUI();
+        tvDistance.setText("...");
+        tvTime.setText("...");
+        tvLights.setText("...");
+        tvSpeed.setText("...");
+        tvEndText.setText("Espere por favor...");
+
+        Log.v("mytag", "EndActivityFragment: starting fragment");
+        startService();
         return myView;
     }
 
-    public String getmDistance() {
-        return mDistance;
-    }
 
-    public void setmDistance(String mDistance) {
-        this.mDistance = mDistance;
-    }
-
-    public String getmTime() {
-        return mTime;
-    }
-
-    public void setmTime(String mTime) {
-        this.mTime = mTime;
-    }
-
-    public String getmLights() {
-        return mLights;
-    }
-
-    public void setmLights(String mLights) {
-        this.mLights = mLights;
-    }
-
-    public String getmSpeed() {
-        return mSpeed;
-    }
-
-    public void setmSpeed(String mSpeed) {
-        this.mSpeed = mSpeed;
-    }
-
-    public String getmEndText() {
-        return mEndText;
-    }
-
-    public void setmEndText(String mEndText) {
-        this.mEndText = mEndText;
-    }
-
-    public String getmLine() {
-        return mLine;
-    }
-
-    public void setmLine(String mLine) {
-        this.mLine = mLine;
-    }
-
-    public boolean ismUrbanCercanias() {
-        return mUrbanCercanias;
-    }
-
-    public void setmUrbanCercanias(boolean mUrbanCercanias) {
-        this.mUrbanCercanias = mUrbanCercanias;
-    }
-
-    public int getmActivityType() {
-        return mActivityType;
-    }
-
-    public void setmActivityType(int mActivityType) {
-        this.mActivityType = mActivityType;
-    }
-
-    public ArrayList<MapPoint> getmUserRoutePoints() {
-        return mUserRoutePoints;
-    }
-
-    public void setmUserRoutePoints(ArrayList<MapPoint> mUserRoutePoints) {
-        this.mUserRoutePoints = mUserRoutePoints;
-    }
-
-    public void UpdateUI() {
+    public void startService() {
 
         if (getActivity() != null) {
 
 
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    tvWaitingValid.setVisibility(View.VISIBLE);
-                    tvValid.setVisibility(View.GONE);
+            endServiceConnection = new ServiceConnection() {
+                public void onServiceConnected(ComponentName className, IBinder service) {
 
-                    tvDistance.setText(mDistance);
-                    tvTime.setText(mTime);
-                    tvLights.setText(mLights);
-                    tvSpeed.setText(mSpeed);
-                    tvEndText.setText(mEndText);
+                    Log.v("mytag", "EndActivityFragment: onServiceConnected");
+                    mService = ((EndService.LocalBinder) service).getService();
+                    mService.setData(ActObject,this,(MainActivity) getActivity(), new EndServiceBinder() {
+                        @Override
+                        public void OnServiceEnded(String lights) {
+                            Log.v("mytag", "EndActivityFragment: service ended");
+                            tvLights.setText(lights);
+                            tvWaitingValid.setVisibility(View.GONE);
+                            tvValid.setVisibility(View.VISIBLE);
+                            tvValid.setText("¡Has ganado " + lights + " lights!");
+                        }
+                    });
 
-                    if (!mDistance.equals("...")) {
-                        endTask = new EndActivityTask(getActivity(), mActivityType, mLine, mUrbanCercanias, mUserRoutePoints, mLights, new OnTaskUpdateListener() {
-                            @Override
-                            public void OnUpdate(int resultCode) {
-                                tvValid.setVisibility(View.VISIBLE);
-                                tvWaitingValid.setVisibility(View.GONE);
-                                tvValid.setText("¡Has ganado " + Math.round(Double.valueOf(mLights)) + " lights!");
-                                Log.v("tagg", "end task on update");
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.v("mytag", "EndActivityFragment: setting initial data");
+                            String Distance = String.valueOf(Math.round(ActObject.getDistance() * 100.0) / 100.0) + "m";
+                            String Speed = String.format(Locale.ENGLISH, "%.2f", ((float)ActObject.getDistance() / 1000) / ((float) ActObject.getSeconds() / 3600)) + "km/h";
 
-                                switch (mActivityType) {
-                                    case ActivityFragment.ACTIVITY_WALK:
-                                        mActionType = UpdateLights.WALK;
-                                        break;
-                                    case ActivityFragment.ACTIVITY_BIKE:
-                                        mActionType = UpdateLights.BIKE;
-                                        break;
-
-                                    case ActivityFragment.ACTIVITY_BUS:
-                                        mActionType = UpdateLights.BUS;
-                                        break;
-
-                                    case ActivityFragment.ACTIVITY_RAILROAD:
-                                        mActionType = UpdateLights.RAILROAD;
-                                        break;
-
-                                    case ActivityFragment.ACTIVITY_RECYCLE:
-                                        mActionType = UpdateLights.RECYCLE;
-                                        break;
-
-                                    case ActivityFragment.ACTIVITY_CARSHARE:
-                                        mActionType = UpdateLights.CAR_SHARE;
-                                        break;
-
-                                    default:
-                                        mActionType = UpdateLights.OTHER;
-                                        break;
-
-                                }
-
-                                new AddActivityHistory(getActivity(), mLights, mSpeed, mTime, mDistance, mActionType, new OnTaskCompletedListener() {
-                                    @Override
-                                    public void OnComplete(String result, int resultCode, int resultType) {
-
-                                    }
-                                }).execute();
-                            }
-
-                            @Override
-                            public void OnError(int resultCode) {
-                                tvWaitingValid.setVisibility(View.VISIBLE);
-                                tvValid.setVisibility(View.GONE);
-                                ((MainActivity) getActivity()).AddToRetryService(endTask);
-                                Log.v("tagg", "end task on error");
-                            }
-                        });
-
-                        endTask.runTask();
-
-                    }
-
+                            tvDistance.setText(Distance);
+                            tvTime.setText(ActObject.getTimeString());
+                            tvSpeed.setText(Speed);
+                            tvEndText.setText(EndText);
+                            tvWaitingValid.setVisibility(View.VISIBLE);
+                        }
+                    });
                 }
-            });
 
+
+                public void onServiceDisconnected(ComponentName className) {
+                    mService = null;
+                }
+            };
+
+            if (ActObject.isTooFast()) {
+                String Distance = String.valueOf(Math.round(ActObject.getDistance() * 100.0) / 100.0) + "m";
+                String Speed = String.format(Locale.ENGLISH, "%.2f", ((float)ActObject.getDistance() / 1000) / ((float) ActObject.getSeconds() / 3600)) + "km/h";
+
+                tvDistance.setText(Distance);
+                tvTime.setText(ActObject.getTimeString());
+                tvSpeed.setText(Speed);
+                tvEndText.setText(EndText);
+                tvWaitingValid.setVisibility(View.GONE);
+                tvLights.setText("0");
+            } else {
+                Log.v("mytag", "EndActivityFragment: binding fragment");
+                getActivity().bindService(new Intent(getContext(),
+                        EndService.class), endServiceConnection, Context.BIND_AUTO_CREATE);
+            }
 
         }
+    }
 
+    public ActivityObject getActObject() {
+        return ActObject;
+    }
+
+    public void setActObject(ActivityObject actObject) {
+        ActObject = actObject;
+    }
+
+    public String getEndText() {
+        return EndText;
+    }
+
+    public void setEndText(String endText) {
+        EndText = endText;
+    }
+
+    @Override
+    public void onStop() {
+        if(mService!=null){
+            mService.setFragmentAlive(false);
+        }
+
+        super.onStop();
     }
 }

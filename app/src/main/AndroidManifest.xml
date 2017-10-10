@@ -51,6 +51,9 @@
         <service android:name=".Services.RetryService" >
         </service>
 
+        <service android:name=".Services.EndService" >
+        </service>
+
         <service
             android:name=".Services.MyFirebaseMessagingService">
             <intent-filter>

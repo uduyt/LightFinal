@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.location.Location;
 import android.net.ConnectivityManager;
 import android.os.Bundle;
@@ -49,11 +50,15 @@ import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.CustomCap;
+import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.SquareCap;
+import com.google.maps.android.PolyUtil;
 import com.witcode.light.light.R;
 import com.witcode.light.light.Services.ActivityService;
 import com.witcode.light.light.Services.ServiceBinder;
@@ -61,10 +66,12 @@ import com.witcode.light.light.activities.MainActivity;
 import com.witcode.light.light.backend.CheckIfLineExists;
 import com.witcode.light.light.backend.CheckIfLineExistsListener;
 import com.witcode.light.light.backend.ExceptionHandler;
+import com.witcode.light.light.backend.GetCitiesInfo;
 import com.witcode.light.light.backend.GetInitialActivityPoints;
 import com.witcode.light.light.backend.GetNearRoutePoints;
 import com.witcode.light.light.backend.MyServerClass;
 import com.witcode.light.light.backend.NetworkChangeReceiver;
+import com.witcode.light.light.backend.OnCityInfoCompleted;
 import com.witcode.light.light.backend.OnConnectivityChangeListener;
 import com.witcode.light.light.backend.OnInitialPointsCompleteListener;
 import com.witcode.light.light.backend.OnLocationUpdateListener;
@@ -74,13 +81,19 @@ import com.witcode.light.light.backend.UpdateLights;
 import com.witcode.light.light.backend.UpdateToken;
 import com.witcode.light.light.backend.ValidateInterurbanBus;
 import com.witcode.light.light.backend.ValidateUrbanBus;
+import com.witcode.light.light.domain.ActivityObject;
+import com.witcode.light.light.domain.City;
 import com.witcode.light.light.domain.MapPoint;
+import com.witcode.light.light.domain.MyClusterManager;
 import com.witcode.light.light.domain.ResizeAnimation;
 
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 public class ActivityFragment extends Fragment {
@@ -99,7 +112,7 @@ public class ActivityFragment extends Fragment {
     private ArrayList<Marker> initialMarkers;
     private String GPSUpdate = "";
     private String mDistance = "0m", mSpeed = "0km/h", mTime = "00:00:00", mLights = "0", mEndText = "HAS TERMINADO LA ACTIVIDAD";
-    ;
+    private Timer walkTimer;
     private ArrayList<MapPoint> mInitialPoints, mUserRoutePoints;
     private ArrayList<ArrayList<MapPoint>> mLineRoutePoints;
     private AutoCompleteTextView mMetroAutoComplete;
@@ -110,13 +123,17 @@ public class ActivityFragment extends Fragment {
     private MapPoint lastPoint = null;
     private MapPoint mapPoint;
     private Polyline polyline;
+    private ArrayList<City> mCities=new ArrayList<>();
+    public static City currentCity;
     private int color;
-    private OnPointsCompleteListener listener;
     private boolean stop = false;
+    private MyClusterManager<MapPoint> mClusterManager;
+    private ActivityObject mActObject = new ActivityObject();
+    private View fabWalk,fabBike,fabBus,fabRailRoad,fabCarshare,fabRecycle;
 
 
     public static String LINE;
-    public static boolean URBAN_CERCANIAS;
+    public static boolean IS_URBAN;
 
     public final static int ACTIVITY_NONE = 0;
     public final static int ACTIVITY_WALK = 1;
@@ -137,6 +154,8 @@ public class ActivityFragment extends Fragment {
 
         myView = inflater.inflate(R.layout.fragment_activity, container, false);
 
+
+        //initiate arraylists
         mInitialPoints = new ArrayList<>();
         mUserRoutePoints = new ArrayList<>();
         mLineRoutePoints = new ArrayList<>();
@@ -178,6 +197,16 @@ public class ActivityFragment extends Fragment {
         flMap = (FrameLayout) myView.findViewById(R.id.map);
         fabStop = (FrameLayout) myView.findViewById(R.id.fl_fab_stop);
 
+        fabWalk=myView.findViewById(R.id.fab_walk);
+        fabBike=myView.findViewById(R.id.fab_bike);
+        fabBus=myView.findViewById(R.id.fab_bus);
+        fabRailRoad=myView.findViewById(R.id.fab_railroad);
+        fabCarshare=myView.findViewById(R.id.fab_carshare);
+        fabRecycle=myView.findViewById(R.id.fab_recycle);
+
+        fabBus.setVisibility(View.GONE);
+        fabRailRoad.setVisibility(View.GONE);
+
         fabStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -185,54 +214,8 @@ public class ActivityFragment extends Fragment {
                 StopActivity();
             }
         });
-        myView.findViewById(R.id.fab_walk).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                activityFragmentRunning = false;
-                StartWalk();
-            }
-        });
 
-        myView.findViewById(R.id.fab_bike).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                activityFragmentRunning = false;
-                StartBike();
-            }
-        });
-
-        myView.findViewById(R.id.fab_bus).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                activityFragmentRunning = false;
-                StartBus();
-            }
-        });
-
-        myView.findViewById(R.id.fab_railroad).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                activityFragmentRunning = false;
-                StartRailroad();
-            }
-        });
-
-        myView.findViewById(R.id.fab_carshare).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                activityFragmentRunning = false;
-                //StartCarshare();
-            }
-        });
-
-        myView.findViewById(R.id.fab_recycle).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                activityFragmentRunning = false;
-                //StartRecycleSync();
-            }
-        });
-
+        SetClickers();
 
         tvDistance = (TextView) myView.findViewById(R.id.tv_distance);
         tvSpeed = (TextView) myView.findViewById(R.id.tv_speed);
@@ -240,95 +223,71 @@ public class ActivityFragment extends Fragment {
         tvTime = (TextView) myView.findViewById(R.id.tv_time);
         tvGPS = (TextView) myView.findViewById(R.id.tv_gps);
 
-        mSupportMapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
-        if (mSupportMapFragment == null) {
-            FragmentManager fragmentManager = getFragmentManager();
-            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-            mSupportMapFragment = SupportMapFragment.newInstance();
-            fragmentTransaction.replace(R.id.map, mSupportMapFragment).commit();
-        }
-
-        if (mSupportMapFragment != null) {
-            mSupportMapFragment.getMapAsync(new OnMapReadyCallback() {
-                @Override
-                public void onMapReady(GoogleMap googleMap) {
-                    if (googleMap != null) {
-
-                        mGoogleMap = googleMap;
-                        googleMap.getUiSettings().setAllGesturesEnabled(true);
-
-
-                        CameraPosition cameraPosition = new CameraPosition.Builder().target(new LatLng(40.434795, -3.731692)).zoom(14.0f).build();
-                        CameraUpdate cameraUpdate = CameraUpdateFactory.newCameraPosition(cameraPosition);
-                        googleMap.moveCamera(cameraUpdate);
-
-
-                        try {
-                            googleMap.setMyLocationEnabled(true);
-                            googleMap.getUiSettings().setZoomGesturesEnabled(true);
-                            googleMap.getUiSettings().setZoomControlsEnabled(true);
-                            googleMap.getUiSettings().setMyLocationButtonEnabled(true);
-                            googleMap.getUiSettings().setCompassEnabled(true);
-                            googleMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
-                                @Override
-                                public boolean onMyLocationButtonClick() {
-
-                                    return false;
-                                }
-                            });
-                        } catch (SecurityException e) {
-                            e.printStackTrace();
-                        }
-
-                        if (ActivityService.IS_SERVICE_RUNNING) {
-                            flNoActivity.setVisibility(View.GONE);
-
-                            StartActivity(ActivityService.CURRENT_ACTIVITY);
-                            mActivity.setServiceBinder(mServiceBinder);
-                        } else {
-                            fabStop.setAlpha(0f);
-                            fabStop.setVisibility(View.GONE);
-                        }
-                    }
-
-                }
-            });
-        }
+        InitiateMap();
 
         mServiceBinder = new ServiceBinder() {
             @Override
-            public void OnUpdate(double distance, double speed, int seconds, double lights, ArrayList<MapPoint> userPoints) {
+            public void OnNewMapPoint(double distance, double speed, final PolylineOptions polylineOptions) {
 
                 mDistance = String.valueOf(Math.round(distance * 100.0) / 100.0) + "m";
                 mSpeed = String.valueOf(Math.round(speed * 100.0) / 100.0) + "km/h";
-                mLights = String.valueOf(Math.round(lights * 100.0) / 100.0);
-
-                int minutes = (seconds) / 60;
-                int hours = minutes / 60;
-
-                String shours, sminutes, sseconds;
-
-                shours = hours < 10 ? "0" + String.valueOf(hours) : String.valueOf(hours);
-                sminutes = (minutes % 60) < 10 ? "0" + String.valueOf(minutes % 60) : String.valueOf(minutes % 60);
-                sseconds = (seconds % 60) < 10 ? "0" + String.valueOf(seconds % 60) : String.valueOf(seconds % 60);
-
-                mTime = shours + ":" + sminutes + ":" + sseconds;
-
-                if(seconds%3==1){
-                    mUserRoutePoints = userPoints;
-                    UpdateUserRoute();
+                mLights=String.format(Locale.ENGLISH,"%.2f", ActivityService.ActivityObject.getLights());
+                if (mActivity != null) {
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            tvDistance.setText(mDistance);
+                            tvSpeed.setText(mSpeed);
+                            Log.v("mytag", "adding polyline with options: " + polylineOptions.getPoints().toString() );
+                            userRoutePolylines.add(mGoogleMap.addPolyline(polylineOptions));
+                            tvLights.setText(mLights);
+                        }
+                    });
                 }
-
-                UpdateValues();
-
             }
 
             @Override
             public void OnGPSUpdate(String GPS) {
                 GPSUpdate = GPS;
-                UpdateValues();
+
+                if (mActivity != null) {
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            tvGPS.setText(GPSUpdate);
+                        }
+                    });
+                }
             }
 
+            @Override
+            public void OnPolylineUpdate(final int index, final int color) {
+
+                mLights=String.format(Locale.ENGLISH,"%.2f", ActivityService.ActivityObject.getLights());
+                if (mActivity != null) {
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            userRoutePolylines.get(index).setColor(color);
+                            tvLights.setText(mLights);
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void OnInitialPointsArrived(final ArrayList<PolylineOptions> polylineOptions) {
+                if (mActivity != null) {
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            for(PolylineOptions pOptions:polylineOptions){
+                                mGoogleMap.addPolyline(pOptions);
+                            }
+                        }
+                    });
+                }
+            }
         };
 
 
@@ -356,9 +315,7 @@ public class ActivityFragment extends Fragment {
                     @Override
                     public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
                         walkConfirmDialog.dismiss();
-                        mActivity.StartActivityService(ActivityFragment.ACTIVITY_WALK, mServiceBinder);
-
-
+                        mActObject.setType(ACTIVITY_WALK);
                         flNoActivity.animate()
                                 .translationY(-flNoActivity.getHeight())
                                 .alpha(0.0f)
@@ -368,7 +325,7 @@ public class ActivityFragment extends Fragment {
                                     @Override
                                     public void onAnimationEnd(Animator animation) {
                                         super.onAnimationEnd(animation);
-                                        StartActivity(ActivityFragment.ACTIVITY_WALK);
+                                        StartActivity();
                                     }
                                 });
                     }
@@ -399,10 +356,7 @@ public class ActivityFragment extends Fragment {
                     @Override
                     public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
                         bikeConfirmDialog.dismiss();
-                        ((MainActivity) getActivity()).StartActivityService(ActivityFragment.ACTIVITY_BIKE, mServiceBinder);
-
-
-                        StartActivity(ActivityFragment.ACTIVITY_BIKE);
+                        mActObject.setType(ACTIVITY_BIKE);
                         flNoActivity.animate()
                                 .translationY(-flNoActivity.getHeight())
                                 .alpha(0.0f)
@@ -412,6 +366,7 @@ public class ActivityFragment extends Fragment {
                                     public void onAnimationEnd(Animator animation) {
                                         super.onAnimationEnd(animation);
                                         flNoActivity.setVisibility(View.GONE);
+                                        StartActivity();
                                     }
                                 });
                     }
@@ -452,19 +407,16 @@ public class ActivityFragment extends Fragment {
 
                         (new CheckIfLineExists(getActivity(), ((EditText) busConfirmDialog.findViewById(R.id.et_dialog_line)).getText().toString(), new CheckIfLineExistsListener() {
 
-
                             @Override
-                            public void onComplete(boolean exists, boolean urban) {
+                            public void onComplete(boolean exists, boolean isUrban) {
                                 progressDialog.dismiss();
                                 if (exists) {
-                                    ((MainActivity) getActivity()).StartActivityService(ActivityFragment.ACTIVITY_BUS, mServiceBinder);
+                                    //the line exists
+                                    mActObject.setType(ACTIVITY_BUS);
 
-                                    ActivityService.LINE = ((EditText) busConfirmDialog.findViewById(R.id.et_dialog_line)).getText().toString();
-                                    ActivityService.URBAN = urban;
-                                    URBAN_CERCANIAS = urban;
-                                    LINE = ActivityService.LINE;
+                                    mActObject.setLine(((EditText) busConfirmDialog.findViewById(R.id.et_dialog_line)).getText().toString());
+                                    mActObject.setCercaniasOrUrban(isUrban);
 
-                                    StartActivity(ActivityFragment.ACTIVITY_BUS);
                                     flNoActivity.animate()
                                             .translationY(-flNoActivity.getHeight())
                                             .alpha(0.0f)
@@ -474,9 +426,11 @@ public class ActivityFragment extends Fragment {
                                                 public void onAnimationEnd(Animator animation) {
                                                     super.onAnimationEnd(animation);
                                                     flNoActivity.setVisibility(View.GONE);
+                                                    StartActivity();
                                                 }
                                             });
                                 } else {
+                                    //the line doesnt exist
                                     Snackbar.make(myView, "La línea especificada no ha sido encontrada...", Snackbar.LENGTH_SHORT).show();
                                 }
                             }
@@ -519,25 +473,17 @@ public class ActivityFragment extends Fragment {
                     public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
 
                         mMetroDialog.dismiss();
-                        ((MainActivity) getActivity()).StartActivityService(ActivityFragment.ACTIVITY_RAILROAD, mServiceBinder);
+                        mActObject.setType(ACTIVITY_RAILROAD);
+                        mActObject.setLine(mMetroAutoComplete.getText().toString());
 
-                        LINE = mMetroAutoComplete.getText().toString();
-
-                        if (LINE.contains("Linea")) {
-                            ActivityService.CERCANIAS = false;
-                            URBAN_CERCANIAS = false;
-                            LINE = LINE.substring(6);
-                            ActivityService.LINE = LINE;
-                            Log.v("tagg", "line: " + LINE);
+                        if ( mActObject.getLine().contains("Linea")) {
+                            mActObject.setCercaniasOrUrban(false);
+                            mActObject.setLine(mActObject.getLine().substring(6));
                         } else {
-                            ActivityService.CERCANIAS = true;
-                            URBAN_CERCANIAS = true;
-                            LINE = LINE.substring(11);
-                            ActivityService.LINE = LINE;
-                            Log.v("tagg", "line: " + LINE);
+                            mActObject.setCercaniasOrUrban(true);
+                            mActObject.setLine(mActObject.getLine().substring(11));
                         }
 
-                        StartActivity(ActivityFragment.ACTIVITY_RAILROAD);
                         flNoActivity.animate()
                                 .translationY(-flNoActivity.getHeight())
                                 .alpha(0.0f)
@@ -547,6 +493,7 @@ public class ActivityFragment extends Fragment {
                                     public void onAnimationEnd(Animator animation) {
                                         super.onAnimationEnd(animation);
                                         flNoActivity.setVisibility(View.GONE);
+                                        StartActivity();
                                     }
                                 });
 
@@ -568,120 +515,64 @@ public class ActivityFragment extends Fragment {
         mMetroDialog.show();
     }
 
+    public void StartActivity() {
+        mActObject.InitiateMillis();
+        mActivity.StartActivityService(mActObject);
+        mClusterManager.setDraw(false);
+        mClusterManager.removeAll();
+        ResumeActivity();
+    }
 
-    public void StartActivity(final int type) {
-
-        if (!activityFragmentRunning) {
-            activityFragmentRunning = true;
-            flActivity.setTranslationY(flActivity.getHeight());
-            flActivity.animate()
-                    .translationY(0)
-                    .alpha(1.0f)
-                    .setDuration(800)
-                    .setListener(new AnimatorListenerAdapter() {
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
-                            super.onAnimationEnd(animation);
-                            //igual algo
-                            Log.v("tagg", "animation ended");
-
-                        }
-                    });
-
-            ResizeAnimation anim = new ResizeAnimation(flBottom, flBottom.getHeight() + 50, flBottom.getHeight());
-            anim.setDuration(800);
-            flBottom.startAnimation(anim);
-
-            anim = new ResizeAnimation(flMap, flMap.getHeight() - flBottom.getHeight() - 50, flMap.getHeight(), false);
-            anim.setDuration(800);
-            flMap.startAnimation(anim);
-
-            fabStop.setVisibility(View.VISIBLE);
-            fabStop.setTranslationY(flActivity.getHeight());
-            fabStop.animate()
-                    .translationY(0)
-                    .alpha(1.0f)
-                    .setDuration(800)
-                    .setListener(new AnimatorListenerAdapter() {
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
-                            super.onAnimationEnd(animation);
-                        }
-                    });
-
-            if (type == ACTIVITY_BUS || type == ACTIVITY_RAILROAD) {
-
-
-                listener=new OnPointsCompleteListener() {
+    public void ResumeActivity() {
+        mActivity.setServiceBinder(mServiceBinder);
+        flActivity.setTranslationY(flActivity.getHeight());
+        flActivity.animate()
+                .translationY(0)
+                .alpha(1.0f)
+                .setDuration(800)
+                .setListener(new AnimatorListenerAdapter() {
                     @Override
-                    public void OnComplete(ArrayList<ArrayList<MapPoint>> points) {
-
-                        if (points == null) {
-                            points = new ArrayList<>();
-                        }
-                        mLineRoutePoints = points;
-
-                        UpdateInitialTransportRoute();
-
-                        try {
-                            getActivity().unregisterReceiver(mrv);
-
-                        } catch (IllegalArgumentException e) {
-                            e.printStackTrace();
-                        }
-                        mrv = null;
+                    public void onAnimationEnd(Animator animation) {
+                        super.onAnimationEnd(animation);
+                        //igual algo
+                        Log.v("tagg", "animation ended");
 
                     }
+                });
 
+        ResizeAnimation anim = new ResizeAnimation(flBottom, flBottom.getHeight() + 50, flBottom.getHeight());
+        anim.setDuration(800);
+        flBottom.startAnimation(anim);
+
+        anim = new ResizeAnimation(flMap, flMap.getHeight() - flBottom.getHeight() - 50, flMap.getHeight(), false);
+        anim.setDuration(800);
+        flMap.startAnimation(anim);
+
+        fabStop.setVisibility(View.VISIBLE);
+        fabStop.setTranslationY(flActivity.getHeight());
+        fabStop.animate()
+                .translationY(0)
+                .alpha(1.0f)
+                .setDuration(800)
+                .setListener(new AnimatorListenerAdapter() {
                     @Override
-                    public void OnError(String result, int resultCode, int resultType) {
-                        if (mrv == null) {
-                            mrv = new NetworkChangeReceiver(new OnConnectivityChangeListener() {
-                                @Override
-                                public void OnChange(int connectivity) {
-
-                                    routeTask = (new GetNearRoutePoints(getActivity(), URBAN_CERCANIAS, type, LINE, listener));
-                                    routeTask.execute();
-                                }
-                            });
-                            IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
-                            filter.addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED);
-                            getActivity().registerReceiver(mrv, filter);
-                        }
-
+                    public void onAnimationEnd(Animator animation) {
+                        super.onAnimationEnd(animation);
                     }
-                };
-                //Pedir polilinea de la ruta del transporte
-                routeTask = (new GetNearRoutePoints(getActivity(), URBAN_CERCANIAS, type, LINE, listener));
-
-                routeTask.execute();
-            }
+                });
 
 
-            new GetInitialActivityPoints(getActivity(), new OnInitialPointsCompleteListener() {
-                @Override
-                public void OnComplete(ArrayList<MapPoint> points) {
-                    mInitialPoints = points;
-                    UpdateInitialPoints();
-                }
+        walkTimer = new Timer();
+        walkTimer.scheduleAtFixedRate(new ActivityFragment.MyTimerTask(), 0, 1000);
 
-                @Override
-                public void OnError(String result, int resultCode, int resultType) {
-                    //todo gestionar sin conexion
-                }
-            }).execute();
-
-        }
-
-        if (stop)
-            StopActivity();
-
+        //Stuff for onResume only
     }
 
     public void StopActivity() {
-        stop = false;
+        mActObject=new ActivityObject();
         activityFragmentRunning = false;
-        mActivity.StopActivityService();
+        walkTimer.cancel();
+
         flActivity.setTranslationY(flActivity.getHeight());
         flActivity.animate()
                 .translationY(flActivity.getHeight())
@@ -705,8 +596,8 @@ public class ActivityFragment extends Fragment {
                     public void onAnimationEnd(Animator animation) {
                         super.onAnimationEnd(animation);
                         fabStop.setVisibility(View.GONE);
-
-                        mActivity.GoToEndActivityFragment(mDistance, mTime, mSpeed, mLights, mEndText, LINE, ActivityService.CURRENT_ACTIVITY, URBAN_CERCANIAS, mUserRoutePoints);
+                        ActivityObject activityObject= ActivityService.ActivityObject;
+                        mActivity.GoToEndActivityFragment(activityObject,"HAS TERMINADO LA ACTIVIDAD");
                         mActivity.StopActivityService();
                     }
                 });
@@ -726,220 +617,6 @@ public class ActivityFragment extends Fragment {
                 });
 
 
-        ClearInitialPoints();
-        ClearInitialRoute();
-        ClearUserRoute();
-
-    }
-
-
-    public void UpdateValues() {
-
-        if (mActivity != null) {
-
-
-            mActivity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    //set textfields
-                    tvDistance.setText(mDistance);
-                    tvSpeed.setText(mSpeed);
-                    tvLights.setText(mLights);
-                    tvTime.setText(mTime);
-                    tvGPS.setText(GPSUpdate);
-
-                }
-            });
-        }
-    }
-
-    public void UpdateUserRoute() {
-
-        if (mActivity != null) {
-
-
-            mActivity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    //user route
-
-                    try {
-                        Iterator<MapPoint> iter = mUserRoutePoints.iterator();
-                        lastPoint=null;
-                        mapPoint=null;
-                        polyline=null;
-
-                        while (iter.hasNext()) {
-                            mapPoint = iter.next();
-                            if (lastPoint != null) {
-                                switch (mapPoint.getValidated()) {
-                                    case MapPoint.VALIDATED:
-                                        color = Color.parseColor("#00ff00");
-                                        break;
-                                    case MapPoint.NOT_VALIDATED:
-                                    case MapPoint.BIG_JUMP:
-                                        color = Color.parseColor("#ff0000");
-                                        Log.v("tagg", "mappoint is: " + mapPoint.getValidated());
-                                        break;
-                                    default:
-                                        color = Color.parseColor("#0000ff");
-                                        break;
-                                }
-
-
-                                polyline = mGoogleMap.addPolyline(new PolylineOptions()
-                                        .add(lastPoint.getLatLng())
-                                        .add(mapPoint.getLatLng())
-                                        .zIndex(1)
-                                        .color(color));
-
-
-                                userRoutePolylines.add(polyline);
-                            }
-                            lastPoint = mapPoint;
-                        }
-                    } catch (ConcurrentModificationException e) {
-                        e.printStackTrace();
-                        new ExceptionHandler(getActivity(), "concurrent_modification_exception: " + e.toString()).execute();
-                    }
-                }
-            });
-        }
-
-
-    }
-
-    public void UpdateInitialTransportRoute() {
-
-        if (getActivity() != null) {
-
-
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-
-                    //transport route
-                    PolylineOptions pOptions;
-                    int i = 0;
-                    for (ArrayList<MapPoint> mps : mLineRoutePoints) {
-                        pOptions = new PolylineOptions();
-                        for (MapPoint mp : mps) {
-                            pOptions.add(mp.getLatLng());
-                            //Log.v("tagg","mp: " + mp.getLatLng().toString());
-                        }
-                        //Log.v("tagg", "tanda terminada");
-
-                        pOptions.color(Color.parseColor("#000000"));
-                        transportRoutePolylines.add(mGoogleMap.addPolyline(pOptions));
-
-                    }
-                }
-            });
-        }
-    }
-
-    public void UpdateInitialPoints() {
-
-        if (getActivity() != null) {
-
-
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-
-                    //initial points
-                    Marker marker;
-                    BitmapDescriptor icon;
-                    for (MapPoint mapPoint : mInitialPoints) {
-                        switch (mapPoint.getType()) {
-                            case MapPoint.BUS_STOP:
-                                //todo change icon
-                                icon = BitmapDescriptorFactory.fromResource(R.drawable.ic_notifications);
-                                break;
-
-                            default:
-                                icon = BitmapDescriptorFactory.fromResource(R.drawable.circle_background_primary);
-                                break;
-                        }
-
-
-                        marker = mGoogleMap.addMarker(new MarkerOptions()
-                                .position(mapPoint.getLatLng())
-                                .icon(icon));
-                        initialMarkers.add(marker);
-                    }
-
-
-                }
-            });
-        }
-    }
-
-    public void ClearUserRoute() {
-
-        if (getActivity() != null) {
-
-
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    for (Polyline polyline : userRoutePolylines) {
-                        polyline.remove();
-                    }
-                }
-            });
-
-            userRoutePolylines = new ArrayList<>();
-        }
-    }
-
-    public void ClearInitialRoute() {
-
-        if (getActivity() != null) {
-
-
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    for (Polyline polyline : transportRoutePolylines) {
-                        polyline.remove();
-                    }
-                    transportRoutePolylines = new ArrayList<>();
-
-                }
-            });
-        }
-    }
-
-    public void ClearInitialPoints() {
-
-        if (getActivity() != null) {
-
-
-            getActivity().runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    for (Marker marker : initialMarkers) {
-                        marker.remove();
-                    }
-                    initialMarkers = new ArrayList<>();
-                }
-            });
-        }
-    }
-
-    public String getmEndText() {
-        return mEndText;
-    }
-
-    public void setmEndText(String mEndText) {
-        if (mEndText != null)
-            this.mEndText = mEndText;
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
     }
 
     @Override
@@ -948,25 +625,207 @@ public class ActivityFragment extends Fragment {
         super.onAttach(context);
     }
 
-    public MainActivity getmActivity() {
-        return mActivity;
-    }
-
     public void setmActivity(MainActivity mActivity) {
         this.mActivity = mActivity;
     }
 
-    public boolean isStop() {
-        return stop;
+    private void SetClickers() {
+        fabWalk.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                activityFragmentRunning = false;
+                StartWalk();
+            }
+        });
+
+       fabBike.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                activityFragmentRunning = false;
+                StartBike();
+            }
+        });
+
+        fabBus.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                activityFragmentRunning = false;
+                StartBus();
+            }
+        });
+
+        fabRailRoad.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                activityFragmentRunning = false;
+                StartRailroad();
+            }
+        });
+
+       fabCarshare.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                activityFragmentRunning = false;
+                //StartCarshare();
+            }
+        });
+
+        fabRecycle.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                activityFragmentRunning = false;
+                //StartRecycleSync();
+            }
+        });
     }
 
-    public void setStop(boolean stop) {
-        this.stop = stop;
+    private void InitiateMap() {
+        mSupportMapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
+        if (mSupportMapFragment == null) {
+            FragmentManager fragmentManager = getFragmentManager();
+            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+            mSupportMapFragment = SupportMapFragment.newInstance();
+            fragmentTransaction.replace(R.id.map, mSupportMapFragment).commit();
+        }
+
+        if (mSupportMapFragment != null) {
+            mSupportMapFragment.getMapAsync(new OnMapReadyCallback() {
+                @Override
+                public void onMapReady(GoogleMap googleMap) {
+                    if (googleMap != null) {
+
+                        mGoogleMap = googleMap;
+                        googleMap.getUiSettings().setAllGesturesEnabled(true);
+
+
+                        CameraPosition cameraPosition = new CameraPosition.Builder().target(new LatLng(28.1043563,-15.4138618)).zoom(14.0f).build();
+                        CameraUpdate cameraUpdate = CameraUpdateFactory.newCameraPosition(cameraPosition);
+                        googleMap.moveCamera(cameraUpdate);
+
+
+
+                        try {
+
+                            googleMap.setMyLocationEnabled(true);
+                            googleMap.getUiSettings().setZoomGesturesEnabled(true);
+                            googleMap.getUiSettings().setZoomControlsEnabled(true);
+                            googleMap.getUiSettings().setMyLocationButtonEnabled(true);
+                            googleMap.getUiSettings().setCompassEnabled(true);
+                            googleMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
+                                @Override
+                                public boolean onMyLocationButtonClick() {
+
+                                    return false;
+                                }
+                            });
+                        } catch (SecurityException e) {
+                            e.printStackTrace();
+                        }
+
+
+                        //Get cities polylines
+                        (new GetCitiesInfo(getActivity(), new OnCityInfoCompleted() {
+                            @Override
+                            public void OnComplete(ArrayList<City> cities) {
+                                mCities=cities;
+                                for(City city:cities){
+                                    mGoogleMap.addPolygon(city.getPolygonOptions());
+                                }
+                            }
+
+                            @Override
+                            public void OnError(String result, int resultCode, int resultType) {
+
+                            }
+                        })).execute();
+
+                        if (ActivityService.ActivityObject.isRunning()) {
+                            //is already running
+                            flNoActivity.setVisibility(View.GONE);
+
+                            mActObject = ActivityService.ActivityObject;
+                            ResumeActivity();
+                            userRoutePolylines=new ArrayList<>();
+                            mActivity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    mDistance = String.valueOf(Math.round(ActivityService.ActivityObject.getDistance() * 100.0) / 100.0) + "m";
+                                    mSpeed = String.valueOf(Math.round(ActivityService.ActivityObject.getSpeed() * 100.0) / 100.0) + "km/h";
+                                    mLights=String.format(Locale.ENGLISH,"%.2f", ActivityService.ActivityObject.getLights());
+
+                                    tvDistance.setText(mDistance);
+                                    tvSpeed.setText(mSpeed);
+                                    tvLights.setText(mLights);
+                                    for(PolylineOptions pOptions:ActivityService.ActivityObject.getUserRoutePolylines()){
+                                        userRoutePolylines.add(mGoogleMap.addPolyline(pOptions));
+                                    }
+
+                                    for(PolylineOptions pOptions:ActivityService.ActivityObject.getInitialRoutePolylines()){
+                                        mGoogleMap.addPolyline(pOptions);
+                                    }
+
+                                }
+                            });
+
+                        } else {
+                            //no activity running
+                            fabStop.setAlpha(0f);
+                            fabStop.setVisibility(View.GONE);
+                        }
+
+                        mClusterManager = new MyClusterManager<>(!ActivityService.ActivityObject.isRunning(),getActivity(), mGoogleMap, new GoogleMap.OnCameraIdleListener() {
+                            @Override
+                            public void onCameraIdle() {
+                                if(!ActivityService.ActivityObject.isRunning()){
+                                    String title="Comenzar Actividad";
+                                    currentCity=null;
+                                    fabBus.setVisibility(View.GONE);
+                                    fabRailRoad.setVisibility(View.GONE);
+
+                                    for(City city:mCities){
+                                        if(PolyUtil.containsLocation(mGoogleMap.getCameraPosition().target,city.getPolygonOptions().getPoints(),false)){
+                                            currentCity=city;
+                                            title=city.getName();
+                                            fabBus.setVisibility(city.isBusEnabled()?View.VISIBLE:View.GONE);
+                                            fabRailRoad.setVisibility(city.isRailroadEnabled()?View.VISIBLE:View.GONE);
+                                        }
+                                    }
+
+                                    myToolbar.setTitle(title);
+                                }
+
+                            }
+                        });
+
+                        mGoogleMap.setOnCameraIdleListener(mClusterManager);
+                        mGoogleMap.setOnMarkerClickListener(mClusterManager);
+                    }
+
+                }
+            });
+        }
+    }
+
+    private class MyTimerTask extends TimerTask {
+        @Override
+        public void run() {
+            // Do stuff
+            mTime = mActObject.getTimeString();
+            mActivity.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    tvTime.setText(mTime);
+                }
+            });
+
+            Log.v("tagg","time: " + mTime);
+
+        }
     }
 
     @Override
     public void onResume() {
-
+        mActObject=ActivityService.ActivityObject;
         try {
             if (mGoogleMap != null)
                 mGoogleMap.setMyLocationEnabled(true);
@@ -978,12 +837,14 @@ public class ActivityFragment extends Fragment {
 
     @Override
     public void onPause() {
+        mActObject=new ActivityObject();
         try {
             if (mGoogleMap != null)
                 mGoogleMap.setMyLocationEnabled(false);
         } catch (SecurityException e) {
             e.printStackTrace();
         }
+
         super.onPause();
     }
 

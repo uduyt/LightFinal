@@ -6,7 +6,6 @@ package com.witcode.light.light.backend;
 
 public interface RetryTask {
 
-    boolean isSuccessful();
     void runTask();
 
 }

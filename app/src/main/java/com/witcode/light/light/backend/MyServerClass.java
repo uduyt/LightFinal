@@ -22,7 +22,6 @@ public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments>
     private ExceptionHandler mExceptionHandler;
     private boolean mSendError = true;
     private Context mContext;
-    private boolean successful=false;
 
     public static final int NO_INPUT_STREAM_EXCEPTION = 1;
     public static final int IOEXCEPTION = 2;
@@ -59,7 +58,7 @@ public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments>
         try {
 
             if (!isConnected(mContext)) {
-                Log.v("mytag", "not connected to the internet");
+                Log.v("mytag", "MyServerClass: not connected to the internet");
                 return new ListenerArguments("not connected to the internet", NOT_CONNECTED, WARNING);
             }
         } catch (Exception e) {
@@ -74,7 +73,7 @@ public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments>
             URL url = new URL(mUri.toString());
 
 
-            Log.v("mytag", "Built URI " + mUri.toString());
+            Log.v("mytag", "MyServerClass: Built URI " + mUri.toString());
 
             // Open the connection
             urlConnection = (HttpURLConnection) url.openConnection();
@@ -130,9 +129,6 @@ public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments>
         }
         if(mListener!=null)
         mListener.OnComplete(result.getResult(), result.getResultCode(), result.getResultType());
-        if(result.getResultCode()!=NOT_CONNECTED){
-            successful=true;
-        }
     }
 
     public static boolean isConnected(Context context) {
@@ -144,23 +140,16 @@ public class  MyServerClass extends AsyncTask<Object, String, ListenerArguments>
 
         if(activeNetwork != null){
             if(activeNetwork.isConnectedOrConnecting()){
-                Log.v("mytag", "network says connected");
+                Log.v("mytag", "MyServerClass: network says connected");
                 return true;
             }else{
-                Log.v("mytag", "not connected because of network info");
+                Log.v("mytag", "MyServerClass: not connected because of network info");
                 return false;
             }
         }
 
         Log.v("mytag", "not connected because network info is null");
         return false;
-
-
-    }
-
-    @Override
-    public boolean isSuccessful() {
-        return successful;
     }
 
     @Override
